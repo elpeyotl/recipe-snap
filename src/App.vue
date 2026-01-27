@@ -245,7 +245,7 @@ const haptic = (style = 'light') => {
   <div class="app" :class="{ dark: darkMode }">
     <!-- Header -->
     <header class="header">
-      <div class="header-brand">
+      <div class="header-brand" @click="haptic(); resetCamera()">
         <img src="/favicon.svg" alt="Recipe Snap" class="header-logo" />
         <h1>Recipe Snap</h1>
       </div>
@@ -654,6 +654,21 @@ const haptic = (style = 'light') => {
           <span class="toggle-slider"></span>
         </label>
       </div>
+
+      <!-- Support -->
+      <h3 class="settings-subtitle">Support</h3>
+      <p class="settings-hint">If you enjoy Recipe Snap, consider buying me a coffee</p>
+
+      <a href="https://buymeacoffee.com/elpeyotl" target="_blank" rel="noopener" class="support-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+          <line x1="6" y1="1" x2="6" y2="4"/>
+          <line x1="10" y1="1" x2="10" y2="4"/>
+          <line x1="14" y1="1" x2="14" y2="4"/>
+        </svg>
+        Buy me a coffee
+      </a>
     </div>
   </div>
 </template>
