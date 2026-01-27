@@ -535,31 +535,6 @@ body {
   text-align: center;
 }
 
-/* New Photo Button */
-.new-photo-btn {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: var(--primary);
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s, background 0.2s;
-}
-
-.new-photo-btn:hover {
-  background: var(--primary-dark);
-  transform: scale(1.05);
-}
-
 /* Start Again Button */
 .start-again {
   text-align: center;
@@ -656,6 +631,51 @@ body {
 .empty-hint {
   font-size: 0.9rem;
   opacity: 0.7;
+}
+
+/* Suggested Additions */
+.suggested-additions {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(0, 137, 123, 0.08), rgba(0, 137, 123, 0.04));
+  border-radius: 12px;
+  border: 1px solid rgba(0, 137, 123, 0.2);
+}
+
+.suggested-additions h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.suggestions-hint {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 0.75rem;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.suggestion-tag {
+  background: var(--primary);
+  color: white;
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+:root.dark .suggested-additions {
+  background: linear-gradient(135deg, rgba(38, 166, 154, 0.12), rgba(38, 166, 154, 0.06));
+  border-color: rgba(38, 166, 154, 0.3);
 }
 
 /* Settings */

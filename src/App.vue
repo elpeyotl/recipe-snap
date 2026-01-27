@@ -29,6 +29,7 @@ const dietaryFilters = ref({
   dairyFree: false
 })
 const maxTime = ref(0) // 0 = no limit, otherwise minutes
+const language = ref('en') // Recipe language
 
 // Load settings from localStorage
 onMounted(() => {
@@ -47,6 +48,9 @@ onMounted(() => {
   const savedMaxTime = localStorage.getItem('recipesnap_maxtime')
   if (savedMaxTime) maxTime.value = JSON.parse(savedMaxTime)
 
+  const savedLanguage = localStorage.getItem('recipesnap_language')
+  if (savedLanguage) language.value = savedLanguage
+
   // Apply dark mode
   if (darkMode.value) document.documentElement.classList.add('dark')
 })
@@ -60,6 +64,7 @@ watch(darkMode, (val) => {
 watch(dietaryFilters, (val) => localStorage.setItem('recipesnap_filters', JSON.stringify(val)), { deep: true })
 watch(servings, (val) => localStorage.setItem('recipesnap_servings', JSON.stringify(val)))
 watch(maxTime, (val) => localStorage.setItem('recipesnap_maxtime', JSON.stringify(val)))
+watch(language, (val) => localStorage.setItem('recipesnap_language', val))
 
 // Check if recipe is favorited
 const isFavorite = (recipe) => favorites.value.some(f => f.name === recipe.name)
@@ -109,7 +114,7 @@ const analyzeIngredients = async () => {
   loadingProgress.value = 'Analyzing ingredients...'
 
   try {
-    const result = await analyzeImage(imageData.value, activeFiltersText.value, servings.value, maxTime.value)
+    const result = await analyzeImage(imageData.value, activeFiltersText.value, servings.value, maxTime.value, language.value)
     ingredients.value = result.ingredients
 
     loadingProgress.value = 'Generating recipe images...'
@@ -466,13 +471,34 @@ const haptic = (style = 'light') => {
         <li v-for="step in selectedRecipe.steps" :key="step">{{ step }}</li>
       </ol>
 
-      <!-- New Photo Button -->
-      <button class="new-photo-btn" @click="haptic('medium'); resetCamera()">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-          <circle cx="12" cy="13" r="4"/>
-        </svg>
-      </button>
+      <!-- Suggested Additions -->
+      <div v-if="selectedRecipe.suggestedAdditions?.length" class="suggested-additions">
+        <h4>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Enhance with
+        </h4>
+        <p class="suggestions-hint">Adding these would make this dish even better:</p>
+        <div class="suggestions-list">
+          <span v-for="item in selectedRecipe.suggestedAdditions" :key="item" class="suggestion-tag">
+            {{ item }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Start Again Button -->
+      <div class="start-again">
+        <button class="start-again-btn" @click="haptic('medium'); resetCamera()">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>Scan new ingredients</span>
+        </button>
+      </div>
     </div>
 
     <!-- Favorites View -->
@@ -574,6 +600,22 @@ const haptic = (style = 'light') => {
           <option :value="30">30 minutes</option>
           <option :value="45">45 minutes</option>
           <option :value="60">1 hour</option>
+        </select>
+      </div>
+
+      <!-- Recipe Language -->
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Recipe Language</span>
+        </div>
+        <select v-model="language" class="time-select">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="it">Italiano</option>
+          <option value="nl">Nederlands</option>
+          <option value="pt">Português</option>
         </select>
       </div>
 

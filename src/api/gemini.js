@@ -1,10 +1,24 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
-function buildPrompt(dietaryFilters, servings, maxTime) {
+const LANGUAGE_NAMES = {
+  en: 'English',
+  de: 'German',
+  es: 'Spanish',
+  fr: 'French',
+  it: 'Italian',
+  nl: 'Dutch',
+  pt: 'Portuguese'
+}
+
+function buildPrompt(dietaryFilters, servings, maxTime, language) {
   let prompt = `You are a helpful cooking assistant. Analyze this image of food ingredients and:
 
 1. Identify all visible ingredients
 2. Suggest 3-5 recipes that can be made with these ingredients`
+
+  if (language && language !== 'en') {
+    prompt += `\n\nIMPORTANT: Respond entirely in ${LANGUAGE_NAMES[language] || 'English'}. All recipe names, descriptions, ingredients, steps, and suggested additions must be in ${LANGUAGE_NAMES[language] || 'English'}. Only the imageSearch field should remain in English for image lookup.`
+  }
 
   if (dietaryFilters) {
     prompt += `\n\nIMPORTANT: Only suggest ${dietaryFilters} recipes. Do not include any recipes that don't fit these dietary requirements.`
@@ -31,10 +45,13 @@ Respond ONLY with valid JSON in this exact format:
       "difficulty": "Easy",
       "description": "Brief description of the dish",
       "ingredients": ["ingredient with amount", ...],
-      "steps": ["Step 1 instruction", "Step 2 instruction", ...]
+      "steps": ["Step 1 instruction", "Step 2 instruction", ...],
+      "suggestedAdditions": ["ingredient1", "ingredient2"]
     }
   ]
 }
+
+For suggestedAdditions: Suggest 1-3 common ingredients NOT in the photo that would enhance this recipe (e.g., "coconut milk", "fresh basil", "parmesan cheese"). Only suggest if they would genuinely improve the dish. Leave empty array if recipe is already complete.
 
 IMPORTANT for imageSearch: Use a simple, common, well-known dish name that would return good food photos (e.g. "fried rice", "omelette", "salad bowl", "grilled chicken"). Avoid unique or creative names.
 
@@ -43,7 +60,7 @@ Keep recipes practical and achievable. Assume the user has basic pantry staples 
   return prompt
 }
 
-export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings = 2, maxTime = 0) {
+export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings = 2, maxTime = 0, language = 'en') {
   if (!API_KEY) {
     throw new Error('Gemini API key not configured. Add VITE_GEMINI_API_KEY to your .env file.')
   }
@@ -52,7 +69,7 @@ export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings =
   const base64Data = imageDataUrl.split(',')[1]
   const mimeType = imageDataUrl.split(';')[0].split(':')[1]
 
-  const prompt = buildPrompt(dietaryFilters, servings, maxTime)
+  const prompt = buildPrompt(dietaryFilters, servings, maxTime, language)
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
