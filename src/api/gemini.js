@@ -1,9 +1,24 @@
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
-const PROMPT = `You are a helpful cooking assistant. Analyze this image of food ingredients and:
+function buildPrompt(dietaryFilters, servings, maxTime) {
+  let prompt = `You are a helpful cooking assistant. Analyze this image of food ingredients and:
 
 1. Identify all visible ingredients
-2. Suggest 3-5 recipes that can be made with these ingredients
+2. Suggest 3-5 recipes that can be made with these ingredients`
+
+  if (dietaryFilters) {
+    prompt += `\n\nIMPORTANT: Only suggest ${dietaryFilters} recipes. Do not include any recipes that don't fit these dietary requirements.`
+  }
+
+  if (maxTime && maxTime > 0) {
+    prompt += `\n\nIMPORTANT: Only suggest recipes that can be prepared in ${maxTime} minutes or less (total cooking time including prep).`
+  }
+
+  if (servings && servings !== 2) {
+    prompt += `\n\nAdjust all ingredient quantities for ${servings} servings.`
+  }
+
+  prompt += `
 
 Respond ONLY with valid JSON in this exact format:
 {
@@ -25,7 +40,10 @@ IMPORTANT for imageSearch: Use a simple, common, well-known dish name that would
 
 Keep recipes practical and achievable. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
 
-export async function analyzeImage(imageDataUrl) {
+  return prompt
+}
+
+export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings = 2, maxTime = 0) {
   if (!API_KEY) {
     throw new Error('Gemini API key not configured. Add VITE_GEMINI_API_KEY to your .env file.')
   }
@@ -33,6 +51,8 @@ export async function analyzeImage(imageDataUrl) {
   // Extract base64 data from data URL
   const base64Data = imageDataUrl.split(',')[1]
   const mimeType = imageDataUrl.split(';')[0].split(':')[1]
+
+  const prompt = buildPrompt(dietaryFilters, servings, maxTime)
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
@@ -45,7 +65,7 @@ export async function analyzeImage(imageDataUrl) {
         contents: [
           {
             parts: [
-              { text: PROMPT },
+              { text: prompt },
               {
                 inline_data: {
                   mime_type: mimeType,
