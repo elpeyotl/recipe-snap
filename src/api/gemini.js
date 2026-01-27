@@ -11,6 +11,7 @@ Respond ONLY with valid JSON in this exact format:
   "recipes": [
     {
       "name": "Recipe Name",
+      "imageSearch": "simple common dish name for image search (e.g. 'pasta carbonara', 'chicken stir fry', 'vegetable soup')",
       "time": "20 mins",
       "difficulty": "Easy",
       "description": "Brief description of the dish",
@@ -19,6 +20,8 @@ Respond ONLY with valid JSON in this exact format:
     }
   ]
 }
+
+IMPORTANT for imageSearch: Use a simple, common, well-known dish name that would return good food photos (e.g. "fried rice", "omelette", "salad bowl", "grilled chicken"). Avoid unique or creative names.
 
 Keep recipes practical and achievable. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
 
@@ -32,7 +35,7 @@ export async function analyzeImage(imageDataUrl) {
   const mimeType = imageDataUrl.split(';')[0].split(':')[1]
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
     {
       method: 'POST',
       headers: {

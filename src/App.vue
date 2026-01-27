@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { analyzeImage } from './api/gemini'
+import { fetchRecipeImage } from './api/imageGen'
 
 // App state
 const currentView = ref('camera') // camera, preview, loading, results, detail
@@ -39,7 +40,16 @@ const analyzeIngredients = async () => {
   try {
     const result = await analyzeImage(imageData.value)
     ingredients.value = result.ingredients
-    recipes.value = result.recipes
+
+    // Fetch images for each recipe - pass full recipe object for better image generation
+    const recipesWithImages = await Promise.all(
+      result.recipes.map(async (recipe) => {
+        const imageUrl = await fetchRecipeImage(recipe)
+        return { ...recipe, imageUrl }
+      })
+    )
+
+    recipes.value = recipesWithImages
     currentView.value = 'results'
   } catch (err) {
     error.value = err.message || 'Failed to analyze image'
@@ -59,7 +69,11 @@ const resetCamera = () => {
 }
 
 // View recipe detail
-const viewRecipe = (recipe) => {
+const viewRecipe = async (recipe) => {
+  // Fetch large image if not already loaded
+  if (!recipe.imageLargeUrl) {
+    recipe.imageLargeUrl = await fetchRecipeImage(recipe)
+  }
   selectedRecipe.value = recipe
   currentView.value = 'detail'
 }
@@ -142,12 +156,20 @@ const backToResults = () => {
           class="recipe-card"
           @click="viewRecipe(recipe)"
         >
-          <h3 class="recipe-name">{{ recipe.name }}</h3>
-          <div class="recipe-meta">
-            <span>{{ recipe.time }}</span>
-            <span>{{ recipe.difficulty }}</span>
+          <img
+            :src="recipe.imageUrl"
+            :alt="recipe.name"
+            class="recipe-image"
+            loading="lazy"
+          />
+          <div class="recipe-card-content">
+            <h3 class="recipe-name">{{ recipe.name }}</h3>
+            <div class="recipe-meta">
+              <span>{{ recipe.time }}</span>
+              <span>{{ recipe.difficulty }}</span>
+            </div>
+            <p class="recipe-description">{{ recipe.description }}</p>
           </div>
-          <p class="recipe-description">{{ recipe.description }}</p>
         </div>
       </div>
 
@@ -168,6 +190,12 @@ const backToResults = () => {
         </svg>
         Back to recipes
       </button>
+
+      <img
+        :src="selectedRecipe.imageLargeUrl || selectedRecipe.imageUrl"
+        :alt="selectedRecipe.name"
+        class="recipe-detail-image"
+      />
 
       <h2>{{ selectedRecipe.name }}</h2>
       <div class="recipe-meta">
