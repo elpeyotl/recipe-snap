@@ -1,17 +1,38 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { analyzeImage } from './api/gemini'
+import { analyzeImage, regenerateFromIngredients } from './api/gemini'
 import { fetchRecipeImage } from './api/imageGen'
+import { useMonetization } from './composables/useMonetization'
+import PaywallModal from './components/PaywallModal.vue'
+
+// Monetization
+const {
+  snapCount,
+  isUnlocked,
+  incrementSnap,
+  shouldShowPaywall,
+  getRemainingFreeSnaps,
+  FREE_SNAPS
+} = useMonetization()
+
+const showPaywall = ref(false)
 
 // App state
 const currentView = ref('camera') // camera, preview, loading, results, detail, favorites, settings
 const imageData = ref(null)
 const ingredients = ref([])
+const originalIngredients = ref([]) // Track original ingredients for comparison
 const recipes = ref([])
 const selectedRecipe = ref(null)
 const error = ref(null)
 const loadingProgress = ref('')
 const previousView = ref('camera') // Track where we came from
+
+// Ingredient editing state
+const editingIngredient = ref(null) // Index of ingredient being edited
+const editingValue = ref('') // Current edit value
+const showAddInput = ref(false) // Show add ingredient input
+const newIngredientValue = ref('') // New ingredient input value
 
 // File input ref
 const fileInput = ref(null)
@@ -20,7 +41,7 @@ const fileInput = ref(null)
 const favorites = ref([])
 
 // Settings
-const darkMode = ref(false)
+const darkMode = ref(true)
 const servings = ref(2)
 const dietaryFilters = ref({
   vegetarian: false,
@@ -89,6 +110,56 @@ const activeFiltersText = computed(() => {
   return active.join(', ')
 })
 
+// Check if ingredients have been modified
+const ingredientsModified = computed(() => {
+  if (originalIngredients.value.length !== ingredients.value.length) return true
+  return !originalIngredients.value.every((ing, i) => ing === ingredients.value[i])
+})
+
+// Remove ingredient
+const removeIngredient = (index) => {
+  haptic()
+  ingredients.value.splice(index, 1)
+}
+
+// Start editing ingredient
+const startEditIngredient = (index) => {
+  haptic()
+  editingIngredient.value = index
+  editingValue.value = ingredients.value[index]
+}
+
+// Save edited ingredient
+const saveEditIngredient = () => {
+  if (editingIngredient.value !== null && editingValue.value.trim()) {
+    ingredients.value[editingIngredient.value] = editingValue.value.trim()
+  }
+  editingIngredient.value = null
+  editingValue.value = ''
+}
+
+// Cancel editing
+const cancelEditIngredient = () => {
+  editingIngredient.value = null
+  editingValue.value = ''
+}
+
+// Add new ingredient
+const addIngredient = () => {
+  if (newIngredientValue.value.trim()) {
+    haptic()
+    ingredients.value.push(newIngredientValue.value.trim())
+    newIngredientValue.value = ''
+    showAddInput.value = false
+  }
+}
+
+// Cancel add ingredient
+const cancelAddIngredient = () => {
+  newIngredientValue.value = ''
+  showAddInput.value = false
+}
+
 // Handle camera button click
 const openCamera = () => {
   fileInput.value.click()
@@ -109,6 +180,12 @@ const handleFileSelect = (event) => {
 
 // Analyze the image
 const analyzeIngredients = async () => {
+  // Check paywall before proceeding
+  if (shouldShowPaywall()) {
+    showPaywall.value = true
+    return
+  }
+
   currentView.value = 'loading'
   error.value = null
   loadingProgress.value = 'Analyzing ingredients...'
@@ -116,23 +193,68 @@ const analyzeIngredients = async () => {
   try {
     const result = await analyzeImage(imageData.value, activeFiltersText.value, servings.value, maxTime.value, language.value)
     ingredients.value = result.ingredients
+    originalIngredients.value = [...result.ingredients] // Store original for comparison
 
-    loadingProgress.value = 'Generating recipe images...'
+    // Increment snap count after successful analysis
+    incrementSnap()
 
-    // Fetch images for each recipe with progress
-    const recipesWithImages = []
-    for (let i = 0; i < result.recipes.length; i++) {
-      loadingProgress.value = `Generating image ${i + 1} of ${result.recipes.length}...`
-      const recipe = result.recipes[i]
-      const imageUrl = await fetchRecipeImage(recipe)
-      recipesWithImages.push({ ...recipe, imageUrl, imageLoaded: false })
-    }
-
-    recipes.value = recipesWithImages
+    // Show results immediately with placeholder images
+    recipes.value = result.recipes.map(recipe => ({
+      ...recipe,
+      imageUrl: null,
+      imageLoaded: false,
+      imageLoading: true
+    }))
     currentView.value = 'results'
+
+    // Load images asynchronously in parallel
+    loadRecipeImages(result.recipes)
   } catch (err) {
     error.value = err.message || 'Failed to analyze image'
     currentView.value = 'preview'
+  }
+}
+
+// Helper to load recipe images asynchronously
+const loadRecipeImages = (recipeList) => {
+  recipeList.forEach(async (recipe, index) => {
+    try {
+      const imageUrl = await fetchRecipeImage(recipe)
+      if (recipes.value[index]) {
+        recipes.value[index].imageUrl = imageUrl
+        recipes.value[index].imageLoading = false
+      }
+    } catch (err) {
+      if (recipes.value[index]) {
+        recipes.value[index].imageLoading = false
+      }
+    }
+  })
+}
+
+// Regenerate recipes with modified ingredients
+const regenerateRecipes = async () => {
+  currentView.value = 'loading'
+  error.value = null
+  loadingProgress.value = 'Finding new recipes...'
+
+  try {
+    // Use the Gemini API with text-based ingredients instead of image
+    const result = await regenerateFromIngredients(ingredients.value, activeFiltersText.value, servings.value, maxTime.value, language.value)
+    originalIngredients.value = [...ingredients.value] // Update original
+
+    recipes.value = result.recipes.map(recipe => ({
+      ...recipe,
+      imageUrl: null,
+      imageLoaded: false,
+      imageLoading: true
+    }))
+    currentView.value = 'results'
+
+    loadRecipeImages(result.recipes)
+  } catch (err) {
+    error.value = err.message || 'Failed to generate recipes'
+    currentView.value = 'results'
   }
 }
 
@@ -239,6 +361,38 @@ const haptic = (style = 'light') => {
     navigator.vibrate(patterns[style] || 10)
   }
 }
+
+// Share the app
+const shareApp = async () => {
+  haptic()
+  const shareData = {
+    title: 'Recipe Snap',
+    text: 'Take a photo of your ingredients and get personalized recipe ideas!',
+    url: 'https://recipe-snap-sand.vercel.app'
+  }
+
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData)
+    } catch (err) {
+      // User cancelled or error
+    }
+  } else {
+    // Fallback: copy URL to clipboard
+    await navigator.clipboard.writeText(shareData.url)
+    alert('Link copied to clipboard!')
+  }
+}
+
+// Handle paywall close
+const closePaywall = () => {
+  showPaywall.value = false
+}
+
+// Handle unlock from paywall
+const handleUnlocked = () => {
+  showPaywall.value = false
+}
 </script>
 
 <template>
@@ -246,10 +400,19 @@ const haptic = (style = 'light') => {
     <!-- Header -->
     <header class="header">
       <div class="header-brand" @click="haptic(); resetCamera()">
-        <img src="/favicon.svg" alt="Recipe Snap" class="header-logo" />
+        <img src="/logo.png" alt="Recipe Snap" class="header-logo" />
         <h1>Recipe Snap</h1>
       </div>
       <div class="header-actions">
+        <button class="header-btn" @click="shareApp" title="Share">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
         <button class="header-btn" @click="viewFavorites" title="Favorites">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -288,6 +451,14 @@ const haptic = (style = 'light') => {
         </svg>
       </button>
       <p class="camera-hint">Tap to snap your ingredients</p>
+
+      <!-- Free snaps remaining indicator -->
+      <div v-if="!isUnlocked && getRemainingFreeSnaps() > 0" class="snaps-remaining">
+        {{ getRemainingFreeSnaps() }} free snap{{ getRemainingFreeSnaps() === 1 ? '' : 's' }} remaining
+      </div>
+      <div v-else-if="isUnlocked" class="snaps-unlimited">
+        Unlimited snaps
+      </div>
 
       <!-- Active filters indicator -->
       <div v-if="activeFiltersText || maxTime > 0" class="active-filters-section">
@@ -332,14 +503,78 @@ const haptic = (style = 'light') => {
       <div class="ingredients-section">
         <h2 class="ingredients-title">Detected Ingredients</h2>
         <div class="ingredients-list">
-          <span
-            v-for="ingredient in ingredients"
-            :key="ingredient"
-            class="ingredient-tag"
-          >
-            {{ ingredient }}
+          <!-- Editable ingredient chips -->
+          <template v-for="(ingredient, index) in ingredients" :key="index">
+            <!-- Editing mode -->
+            <span v-if="editingIngredient === index" class="ingredient-tag editing">
+              <input
+                v-model="editingValue"
+                type="text"
+                class="ingredient-input"
+                @keyup.enter="saveEditIngredient"
+                @keyup.escape="cancelEditIngredient"
+                @blur="saveEditIngredient"
+                autofocus
+              />
+            </span>
+            <!-- Display mode -->
+            <span
+              v-else
+              class="ingredient-tag editable"
+              @click="startEditIngredient(index)"
+            >
+              {{ ingredient }}
+              <button
+                class="ingredient-remove"
+                @click.stop="removeIngredient(index)"
+                title="Remove"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </span>
+          </template>
+
+          <!-- Add ingredient -->
+          <span v-if="showAddInput" class="ingredient-tag editing">
+            <input
+              v-model="newIngredientValue"
+              type="text"
+              class="ingredient-input"
+              placeholder="New ingredient"
+              @keyup.enter="addIngredient"
+              @keyup.escape="cancelAddIngredient"
+              @blur="addIngredient"
+              autofocus
+            />
           </span>
+          <button
+            v-else
+            class="ingredient-tag add-btn"
+            @click="haptic(); showAddInput = true"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add
+          </button>
         </div>
+
+        <!-- Regenerate button when ingredients changed -->
+        <button
+          v-if="ingredientsModified"
+          class="regenerate-btn"
+          @click="haptic('medium'); regenerateRecipes()"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          Regenerate recipes
+        </button>
       </div>
 
       <!-- Recipes -->
@@ -367,6 +602,7 @@ const haptic = (style = 'light') => {
           <div class="recipe-image-container">
             <div v-if="!recipe.imageLoaded" class="skeleton-image"></div>
             <img
+              v-if="recipe.imageUrl"
               :src="recipe.imageUrl"
               :alt="recipe.name"
               class="recipe-image"
@@ -418,11 +654,15 @@ const haptic = (style = 'light') => {
         Back
       </button>
 
-      <img
-        :src="selectedRecipe.imageLargeUrl || selectedRecipe.imageUrl"
-        :alt="selectedRecipe.name"
-        class="recipe-detail-image"
-      />
+      <div class="recipe-detail-image-container">
+        <div v-if="!selectedRecipe.imageUrl" class="skeleton-image detail"></div>
+        <img
+          v-if="selectedRecipe.imageUrl"
+          :src="selectedRecipe.imageLargeUrl || selectedRecipe.imageUrl"
+          :alt="selectedRecipe.name"
+          class="recipe-detail-image"
+        />
+      </div>
 
       <div class="recipe-detail-header">
         <h2>{{ selectedRecipe.name }}</h2>
@@ -670,5 +910,12 @@ const haptic = (style = 'light') => {
         Buy me a coffee
       </a>
     </div>
+
+    <!-- Paywall Modal -->
+    <PaywallModal
+      v-if="showPaywall"
+      @close="closePaywall"
+      @unlocked="handleUnlocked"
+    />
   </div>
 </template>
