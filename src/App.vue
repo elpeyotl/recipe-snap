@@ -365,10 +365,11 @@ const haptic = (style = 'light') => {
 // Share the app
 const shareApp = async () => {
   haptic()
+  const url = 'https://recipe-snap-sand.vercel.app'
   const shareData = {
     title: 'Recipe Snap',
-    text: 'Take a photo of your ingredients and get personalized recipe ideas!',
-    url: 'https://recipe-snap-sand.vercel.app'
+    text: `Take a photo of your ingredients and get personalized recipe ideas! ${url}`,
+    url: url
   }
 
   if (navigator.share) {
@@ -379,7 +380,7 @@ const shareApp = async () => {
     }
   } else {
     // Fallback: copy URL to clipboard
-    await navigator.clipboard.writeText(shareData.url)
+    await navigator.clipboard.writeText(url)
     alert('Link copied to clipboard!')
   }
 }
@@ -895,20 +896,6 @@ const handleUnlocked = () => {
         </label>
       </div>
 
-      <!-- Support -->
-      <h3 class="settings-subtitle">Support</h3>
-      <p class="settings-hint">If you enjoy Recipe Snap, consider buying me a coffee</p>
-
-      <a href="https://buymeacoffee.com/elpeyotl" target="_blank" rel="noopener" class="support-link">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
-          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-          <line x1="6" y1="1" x2="6" y2="4"/>
-          <line x1="10" y1="1" x2="10" y2="4"/>
-          <line x1="14" y1="1" x2="14" y2="4"/>
-        </svg>
-        Buy me a coffee
-      </a>
     </div>
 
     <!-- Paywall Modal -->

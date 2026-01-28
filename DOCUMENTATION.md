@@ -56,7 +56,14 @@ Recipe Snap is a PWA that helps users discover recipes based on ingredients they
 - Max cooking time filter
 - Recipe language selector (7 languages)
 - Dietary preferences (vegetarian, vegan, gluten-free, dairy-free)
-- Buy Me a Coffee support link
+
+### 8. Paywall Flow
+- Users get **3 free snaps** before paywall appears
+- Camera view shows remaining free snaps counter
+- After free snaps exhausted, PaywallModal appears with:
+  - Buy Me a Coffee link for support
+  - Unlock code input for unlimited access
+- Unlocked state persists in localStorage
 
 ---
 
@@ -72,12 +79,15 @@ Recipe Snap is a PWA that helps users discover recipes based on ingredients they
 ### APIs
 
 #### Gemini API (Google AI)
-- **Model for text:** `gemini-2.0-flash`
-- **Model for images:** `gemini-2.5-flash-image`
+- **Model:** `gemini-2.0-flash`
 - **Endpoints:**
   - `analyzeImage()` - Analyze photo, identify ingredients, suggest recipes
   - `regenerateFromIngredients()` - Generate recipes from text ingredient list
-  - `fetchRecipeImage()` - Generate food photography for each recipe
+
+#### Unsplash API
+- **Endpoint:** `fetchRecipeImage()` - Fetch food photography for each recipe
+- Uses recipe name as search query
+- Free tier with attribution
 
 ### Data Flow
 ```
@@ -145,7 +155,13 @@ Photo → Gemini (analyze) → Ingredients + Recipes JSON
 
 ```env
 VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_UNLOCK_CODE=your_unlock_code_here
 ```
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_GEMINI_API_KEY` | Google Gemini API key for image analysis and recipe generation |
+| `VITE_UNLOCK_CODE` | Unlock code users can enter to bypass paywall and get unlimited snaps |
 
 ---
 
@@ -154,20 +170,27 @@ VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 recipe-snap/
 ├── public/
-│   ├── favicon.svg
-│   ├── pwa-192x192.svg
-│   └── pwa-512x512.svg
+│   ├── logo.png              # App logo
+│   ├── favicon-32.png        # Browser favicon
+│   ├── apple-touch-icon.png  # iOS home screen icon
+│   ├── pwa-192x192.png       # PWA icon (small)
+│   └── pwa-512x512.png       # PWA icon (large)
 ├── src/
 │   ├── api/
-│   │   ├── gemini.js      # Gemini API calls
-│   │   └── imageGen.js    # Image generation
-│   ├── App.vue            # Main component
-│   ├── main.js            # Entry point + analytics
-│   └── style.css          # All styles
+│   │   ├── gemini.js         # Gemini API calls
+│   │   └── imageGen.js       # Unsplash image fetching
+│   ├── components/
+│   │   └── PaywallModal.vue  # Paywall modal component
+│   ├── composables/
+│   │   ├── useMonetization.js # Snap counting & paywall logic
+│   │   └── usePlatform.js     # Platform detection (web/native)
+│   ├── App.vue               # Main component
+│   ├── main.js               # Entry point + analytics
+│   └── style.css             # All styles
 ├── index.html
 ├── vite.config.js
 ├── package.json
-└── .env                   # API keys (not committed)
+└── .env                      # API keys (not committed)
 ```
 
 ---
@@ -177,12 +200,13 @@ recipe-snap/
 ### Implemented
 - [x] Camera/photo capture
 - [x] Ingredient detection via Gemini
-- [x] Recipe suggestions with AI images
+- [x] Recipe suggestions with Unsplash images
 - [x] Async image loading (non-blocking)
 - [x] Editable ingredient chips
 - [x] Recipe regeneration from modified ingredients
 - [x] Favorite recipes (localStorage)
 - [x] Share recipe button
+- [x] Share app button (header)
 - [x] Dark mode (default)
 - [x] Serving size adjustment with scaling
 - [x] Dietary filters
@@ -191,6 +215,9 @@ recipe-snap/
 - [x] PWA (offline, installable)
 - [x] Haptic feedback
 - [x] Vercel Analytics
+- [x] Monetization (3 free snaps + paywall)
+- [x] Unlock code support
+- [x] PNG icons (favicon, PWA, Apple touch)
 
 ### Potential Future Features
 - [ ] Persistent image cache (IndexedDB)
