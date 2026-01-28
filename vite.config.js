@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Recipe Snap',
         short_name: 'RecipeSnap',
         description: 'Snap a photo of ingredients, get recipe ideas',
-        theme_color: '#4CAF50',
-        background_color: '#ffffff',
+        theme_color: '#1a1a2e',
+        background_color: '#121212',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
