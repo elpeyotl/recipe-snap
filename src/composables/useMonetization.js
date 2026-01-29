@@ -3,6 +3,7 @@ import { usePlatform } from './usePlatform'
 
 const FREE_SNAPS = 3
 const UNLOCK_CODE = import.meta.env.VITE_UNLOCK_CODE || ''
+const LIMIT_SNAPS = import.meta.env.VITE_LIMIT_SNAPS !== 'false' // defaults to true, set VITE_LIMIT_SNAPS=false to disable
 const STORAGE_KEY_SNAPS = 'recipe-snap-count'
 const STORAGE_KEY_UNLOCKED = 'recipe-snap-unlocked'
 
@@ -19,11 +20,13 @@ export function useMonetization() {
   }
 
   const shouldShowPaywall = () => {
+    if (!LIMIT_SNAPS) return false
     if (isUnlocked.value) return false
     return snapCount.value >= FREE_SNAPS
   }
 
   const getRemainingFreeSnaps = () => {
+    if (!LIMIT_SNAPS) return Infinity
     if (isUnlocked.value) return Infinity
     return Math.max(0, FREE_SNAPS - snapCount.value)
   }
