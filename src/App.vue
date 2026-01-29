@@ -286,6 +286,13 @@ const analyzeIngredients = async () => {
     return
   }
 
+  // Deduct snap credit before making the API call
+  const snapResult = await useSnap()
+  if (!snapResult.success) {
+    showPaywall.value = true
+    return
+  }
+
   currentView.value = 'loading'
   error.value = null
   loadingProgress.value = 'Analyzing ingredients...'
@@ -294,14 +301,6 @@ const analyzeIngredients = async () => {
     const result = await analyzeImage(imageData.value, activeFiltersText.value, servings.value, maxTime.value, language.value)
     ingredients.value = result.ingredients
     originalIngredients.value = [...result.ingredients] // Store original for comparison
-
-    // Deduct snap credit after successful analysis
-    const snapResult = await useSnap()
-    if (!snapResult.success) {
-      error.value = snapResult.error || 'Failed to use snap credit'
-      currentView.value = 'preview'
-      return
-    }
 
     // Show results immediately with placeholder images
     recipes.value = result.recipes.map(recipe => ({
