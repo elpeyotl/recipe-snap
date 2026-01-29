@@ -28,6 +28,7 @@ const purchaseLoading = ref(false)
 const showFavorites = ref(false)
 const showHistory = ref(false)
 const showSettings = ref(false)
+const showProfile = ref(false)
 const legalModal = ref(null) // 'privacy' | 'terms' | null
 
 // App state
@@ -414,6 +415,7 @@ const scaleIngredient = (ingredient, originalServings = 2) => {
 const viewFavorites = () => {
   showSettings.value = false
   showHistory.value = false
+  showProfile.value = false
   showFavorites.value = !showFavorites.value
 }
 
@@ -421,6 +423,7 @@ const viewFavorites = () => {
 const viewHistory = () => {
   showSettings.value = false
   showFavorites.value = false
+  showProfile.value = false
   showHistory.value = !showHistory.value
 }
 
@@ -428,7 +431,16 @@ const viewHistory = () => {
 const viewSettings = () => {
   showFavorites.value = false
   showHistory.value = false
+  showProfile.value = false
   showSettings.value = !showSettings.value
+}
+
+// View profile
+const viewProfile = () => {
+  showFavorites.value = false
+  showHistory.value = false
+  showSettings.value = false
+  showProfile.value = !showProfile.value
 }
 
 // View favorite recipe detail
@@ -493,7 +505,7 @@ const openBuyCredits = () => {
 }
 
 // Fetch data when opening sheets
-watch(showSettings, async (open) => {
+watch(showProfile, async (open) => {
   if (open && isLoggedIn.value) await fetchPurchases()
 })
 watch(showFavorites, (open) => {
@@ -564,7 +576,7 @@ const handleManageSubscription = async () => {
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
         </button>
-        <button v-if="!isLoggedIn" class="header-btn" @click="viewSettings" title="Settings">
+        <button class="header-btn" @click="viewSettings" title="Settings">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.26.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/>
           </svg>
@@ -572,7 +584,7 @@ const handleManageSubscription = async () => {
         <button v-if="!isLoggedIn" class="header-signin" @click="forceLoginMode = true; showPaywall = true">
           Sign In
         </button>
-        <button v-if="isLoggedIn" class="header-avatar" @click="viewSettings" :title="user?.email">
+        <button v-if="isLoggedIn" class="header-avatar" @click="viewProfile" :title="user?.email">
           {{ getUserInitial }}
         </button>
       </div>
@@ -1053,7 +1065,7 @@ const handleManageSubscription = async () => {
       </div>
     </BaseSheet>
 
-    <!-- Settings Bottom Sheet -->
+    <!-- Settings Bottom Sheet (cooking preferences) -->
     <BaseSheet v-if="showSettings" title="Settings" @close="showSettings = false">
 
       <!-- Default Servings -->
@@ -1134,8 +1146,35 @@ const handleManageSubscription = async () => {
         </label>
       </div>
 
-      <!-- Account Section -->
-      <h3 class="settings-subtitle">Account</h3>
+      <!-- Legal & Support -->
+      <h3 class="settings-subtitle">Support & Legal</h3>
+
+      <a href="mailto:hello@recipesnap.co" class="setting-item setting-link">
+        <div class="setting-info">
+          <span class="setting-label">Contact Support</span>
+          <span class="setting-hint">hello@recipesnap.co</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <button class="setting-item setting-link" @click="legalModal = 'privacy'">
+        <div class="setting-info">
+          <span class="setting-label">Privacy Policy</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+      <button class="setting-item setting-link" @click="legalModal = 'terms'">
+        <div class="setting-info">
+          <span class="setting-label">Terms of Service</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+    </BaseSheet>
+
+    <!-- Profile Bottom Sheet (account, subscription, legal) -->
+    <BaseSheet v-if="showProfile" title="Account" @close="showProfile = false">
 
       <template v-if="isLoggedIn">
         <div class="account-card">
@@ -1217,31 +1256,6 @@ const handleManageSubscription = async () => {
           <button class="btn btn-primary btn-sm" @click="forceLoginMode = true; showPaywall = true">Sign In</button>
         </div>
       </template>
-
-      <!-- Legal & Support -->
-      <h3 class="settings-subtitle">Support & Legal</h3>
-
-      <a href="mailto:hello@recipesnap.co" class="setting-item setting-link">
-        <div class="setting-info">
-          <span class="setting-label">Contact Support</span>
-          <span class="setting-hint">hello@recipesnap.co</span>
-        </div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      </a>
-
-      <button class="setting-item setting-link" @click="legalModal = 'privacy'">
-        <div class="setting-info">
-          <span class="setting-label">Privacy Policy</span>
-        </div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-
-      <button class="setting-item setting-link" @click="legalModal = 'terms'">
-        <div class="setting-info">
-          <span class="setting-label">Terms of Service</span>
-        </div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
 
     </BaseSheet>
 
