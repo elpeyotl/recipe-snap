@@ -515,6 +515,45 @@ const handleUnlocked = () => {
       <div class="camera-intro">
         <h2>What's in your fridge?</h2>
         <p>Take a photo of your ingredients and get personalized recipe ideas</p>
+
+        <!-- Animated ingredient illustration -->
+        <div class="ingredient-animation">
+          <svg width="220" height="80" viewBox="0 0 220 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Carrot -->
+            <g class="anim-ingredient anim-delay-1">
+              <path d="M30 55 L45 30 L48 32 L33 57Z" fill="#FF7043"/>
+              <path d="M45 30 C43 25 47 20 50 22" stroke="#66BB6A" stroke-width="2" fill="none"/>
+              <path d="M46 28 C48 23 52 24 51 27" stroke="#66BB6A" stroke-width="1.5" fill="none"/>
+            </g>
+            <!-- Tomato -->
+            <g class="anim-ingredient anim-delay-2">
+              <circle cx="75" cy="45" r="16" fill="#EF5350"/>
+              <path d="M70 32 C75 28 80 30 82 33" stroke="#66BB6A" stroke-width="2" fill="none"/>
+              <ellipse cx="70" cy="42" rx="4" ry="6" fill="#E53935" opacity="0.4"/>
+            </g>
+            <!-- Cheese wedge -->
+            <g class="anim-ingredient anim-delay-3">
+              <path d="M105 58 L130 58 L130 35 Z" fill="#FFD54F"/>
+              <path d="M105 58 L130 58 L130 35 Z" stroke="#FFC107" stroke-width="1" fill="none"/>
+              <circle cx="120" cy="50" r="2.5" fill="#FFC107" opacity="0.6"/>
+              <circle cx="115" cy="54" r="1.8" fill="#FFC107" opacity="0.6"/>
+            </g>
+            <!-- Broccoli -->
+            <g class="anim-ingredient anim-delay-4">
+              <rect x="161" y="50" width="4" height="14" rx="1" fill="#7CB342"/>
+              <circle cx="155" cy="46" r="8" fill="#66BB6A"/>
+              <circle cx="163" cy="43" r="9" fill="#4CAF50"/>
+              <circle cx="171" cy="46" r="7" fill="#66BB6A"/>
+            </g>
+            <!-- Pasta -->
+            <g class="anim-ingredient anim-delay-5">
+              <path d="M195 60 C192 45 198 38 202 36" stroke="#FFE0B2" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M200 60 C197 47 203 40 207 38" stroke="#FFCC80" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M205 60 C202 48 206 42 210 40" stroke="#FFE0B2" stroke-width="3" stroke-linecap="round" fill="none"/>
+            </g>
+          </svg>
+          <p class="anim-hint">One photo, all your ingredients</p>
+        </div>
       </div>
 
       <button class="camera-btn" @click="haptic('medium'); openCamera()">
