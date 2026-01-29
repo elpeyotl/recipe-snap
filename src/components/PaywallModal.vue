@@ -1,11 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { PACKS, SUBSCRIPTION } from '../services/stripe'
 
 const props = defineProps({
   needsLogin: Boolean,
   needsCredits: Boolean,
-  loading: Boolean
+  loading: Boolean,
+  voluntaryLogin: Boolean
 })
 
 const emit = defineEmits(['close', 'login-google', 'login-apple', 'login-email', 'buy', 'subscribe'])
@@ -13,6 +14,10 @@ const emit = defineEmits(['close', 'login-google', 'login-apple', 'login-email',
 const email = ref('')
 const emailError = ref('')
 const magicLinkSent = ref(false)
+
+const onKeydown = (e) => { if (e.key === 'Escape') emit('close') }
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 const handleEmailSubmit = () => {
   emailError.value = ''
@@ -33,10 +38,10 @@ const handleEmailSubmit = () => {
 
       <!-- Login State -->
       <template v-if="needsLogin">
-        <div class="paywall-icon">🔑</div>
-        <h2 class="paywall-title">You've used all 10 free snaps!</h2>
+        <div class="paywall-icon">{{ voluntaryLogin ? '👤' : '🔑' }}</div>
+        <h2 class="paywall-title">{{ voluntaryLogin ? 'Sign in to Recipe Snap' : "You've used all 10 free snaps!" }}</h2>
         <p class="paywall-description">
-          Create an account to continue using Recipe Snap.
+          {{ voluntaryLogin ? 'Save recipes, sync across devices, and more.' : 'Create an account to continue using Recipe Snap.' }}
         </p>
 
         <template v-if="!magicLinkSent">
