@@ -40,6 +40,11 @@ const fileInput = ref(null)
 // Favorites
 const favorites = ref([])
 
+// Search history (last 3 searches)
+const HISTORY_KEY = 'recipesnap_history'
+const MAX_HISTORY = 3
+const searchHistory = ref([])
+
 // Settings
 const darkMode = ref(true)
 const servings = ref(2)
@@ -57,6 +62,11 @@ onMounted(() => {
   const savedFavorites = localStorage.getItem('recipesnap_favorites')
   if (savedFavorites) favorites.value = JSON.parse(savedFavorites)
 
+  const savedHistory = localStorage.getItem(HISTORY_KEY)
+  if (savedHistory) {
+    try { searchHistory.value = JSON.parse(savedHistory) } catch (e) { /* ignore */ }
+  }
+
   const savedDarkMode = localStorage.getItem('recipesnap_darkmode')
   if (savedDarkMode) darkMode.value = JSON.parse(savedDarkMode)
 
@@ -72,6 +82,22 @@ onMounted(() => {
   const savedLanguage = localStorage.getItem('recipesnap_language')
   if (savedLanguage) language.value = savedLanguage
 
+  // Restore last session (recipes, ingredients, view)
+  const savedSession = localStorage.getItem('recipesnap_session')
+  if (savedSession) {
+    try {
+      const session = JSON.parse(savedSession)
+      if (session.recipes?.length) {
+        recipes.value = session.recipes
+        ingredients.value = session.ingredients || []
+        originalIngredients.value = session.originalIngredients || []
+        currentView.value = session.view === 'detail' ? 'results' : (session.view || 'results')
+      }
+    } catch (e) {
+      // Ignore corrupt session data
+    }
+  }
+
   // Apply dark mode
   if (darkMode.value) document.documentElement.classList.add('dark')
 })
@@ -86,6 +112,18 @@ watch(dietaryFilters, (val) => localStorage.setItem('recipesnap_filters', JSON.s
 watch(servings, (val) => localStorage.setItem('recipesnap_servings', JSON.stringify(val)))
 watch(maxTime, (val) => localStorage.setItem('recipesnap_maxtime', JSON.stringify(val)))
 watch(language, (val) => localStorage.setItem('recipesnap_language', val))
+
+// Save session when recipes or view changes
+watch([recipes, ingredients, currentView], () => {
+  if (recipes.value.length > 0) {
+    localStorage.setItem('recipesnap_session', JSON.stringify({
+      recipes: recipes.value,
+      ingredients: ingredients.value,
+      originalIngredients: originalIngredients.value,
+      view: currentView.value
+    }))
+  }
+}, { deep: true })
 
 // Check if recipe is favorited
 const isFavorite = (recipe) => favorites.value.some(f => f.name === recipe.name)
@@ -207,6 +245,9 @@ const analyzeIngredients = async () => {
     }))
     currentView.value = 'results'
 
+    // Save to search history
+    saveToHistory()
+
     // Load images asynchronously in parallel
     loadRecipeImages(result.recipes)
   } catch (err) {
@@ -251,6 +292,9 @@ const regenerateRecipes = async () => {
     }))
     currentView.value = 'results'
 
+    // Save to search history
+    saveToHistory()
+
     loadRecipeImages(result.recipes)
   } catch (err) {
     error.value = err.message || 'Failed to generate recipes'
@@ -267,6 +311,34 @@ const resetCamera = () => {
   selectedRecipe.value = null
   error.value = null
   fileInput.value.value = ''
+  localStorage.removeItem('recipesnap_session')
+}
+
+// Save current search to history
+const saveToHistory = () => {
+  if (!ingredients.value.length || !recipes.value.length) return
+  const entry = {
+    id: Date.now(),
+    ingredients: [...ingredients.value],
+    recipes: recipes.value.map(r => ({ ...r })),
+    timestamp: Date.now()
+  }
+  // Remove duplicate (same ingredients) if exists
+  const filtered = searchHistory.value.filter(
+    h => h.ingredients.join(',') !== entry.ingredients.join(',')
+  )
+  searchHistory.value = [entry, ...filtered].slice(0, MAX_HISTORY)
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistory.value))
+}
+
+// Load a history entry
+const loadFromHistory = (entry) => {
+  haptic()
+  ingredients.value = [...entry.ingredients]
+  originalIngredients.value = [...entry.ingredients]
+  recipes.value = entry.recipes.map(r => ({ ...r }))
+  selectedRecipe.value = null
+  currentView.value = 'results'
 }
 
 // View recipe detail
@@ -467,6 +539,26 @@ const handleUnlocked = () => {
         <div class="active-filters">
           <span v-if="activeFiltersText" class="filter-badge">{{ activeFiltersText }}</span>
           <span v-if="maxTime > 0" class="filter-badge">{{ maxTime }} min max</span>
+        </div>
+      </div>
+
+      <!-- Search History -->
+      <div v-if="searchHistory.length" class="history-section">
+        <h3 class="history-title">Recent Searches</h3>
+        <div class="history-list">
+          <button
+            v-for="entry in searchHistory"
+            :key="entry.id"
+            class="history-item"
+            @click="loadFromHistory(entry)"
+          >
+            <div class="history-ingredients">
+              {{ entry.ingredients.slice(0, 4).join(', ') }}{{ entry.ingredients.length > 4 ? '...' : '' }}
+            </div>
+            <div class="history-meta">
+              {{ entry.recipes.length }} recipe{{ entry.recipes.length === 1 ? '' : 's' }}
+            </div>
+          </button>
         </div>
       </div>
     </div>
