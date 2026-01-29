@@ -10,6 +10,12 @@ let initialized = false
 export function useAuth() {
   const isLoggedIn = computed(() => !!user.value)
   const credits = computed(() => profile.value?.credits ?? 0)
+  const subscriptionCredits = computed(() => profile.value?.subscription_credits ?? 0)
+  const subscriptionStatus = computed(() => profile.value?.subscription_status ?? 'none')
+  const subscriptionPeriodEnd = computed(() => profile.value?.subscription_period_end ?? null)
+  const hasActiveSubscription = computed(() =>
+    ['active', 'canceled'].includes(subscriptionStatus.value)
+  )
 
   async function fetchProfile() {
     if (!user.value || !supabase) return
@@ -89,6 +95,10 @@ export function useAuth() {
     loading,
     isLoggedIn,
     credits,
+    subscriptionCredits,
+    subscriptionStatus,
+    subscriptionPeriodEnd,
+    hasActiveSubscription,
     init,
     fetchProfile,
     signInWithEmail,

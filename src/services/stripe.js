@@ -6,7 +6,69 @@ const PACKS = {
   pro: { name: 'Pro', credits: 100, price: '$8.99' }
 }
 
-export { PACKS }
+const SUBSCRIPTION = {
+  name: 'Monthly',
+  credits: 80,
+  price: '$4.99',
+  interval: 'month'
+}
+
+export { PACKS, SUBSCRIPTION }
+
+export async function buySubscription() {
+  if (!supabase) {
+    throw new Error('Supabase not configured')
+  }
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch('/api/create-checkout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({ type: 'subscription' })
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to create checkout session')
+  }
+
+  const { url } = await response.json()
+  window.location.href = url
+}
+
+export async function openCustomerPortal() {
+  if (!supabase) {
+    throw new Error('Supabase not configured')
+  }
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    throw new Error('Not authenticated')
+  }
+
+  const response = await fetch('/api/create-portal-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to open billing portal')
+  }
+
+  const { url } = await response.json()
+  window.location.href = url
+}
 
 export async function buyCredits(packName) {
   if (!supabase) {

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { PACKS } from '../services/stripe'
+import { PACKS, SUBSCRIPTION } from '../services/stripe'
 
 const props = defineProps({
   needsLogin: Boolean,
@@ -8,7 +8,7 @@ const props = defineProps({
   loading: Boolean
 })
 
-const emit = defineEmits(['close', 'login-google', 'login-apple', 'login-email', 'buy'])
+const emit = defineEmits(['close', 'login-google', 'login-apple', 'login-email', 'buy', 'subscribe'])
 
 const email = ref('')
 const emailError = ref('')
@@ -84,8 +84,22 @@ const handleEmailSubmit = () => {
         <div class="paywall-icon">✨</div>
         <h2 class="paywall-title">You're out of credits!</h2>
         <p class="paywall-description">
-          Buy more to keep snapping ingredients and discovering recipes.
+          Keep snapping ingredients and discovering recipes.
         </p>
+
+        <button
+          class="subscription-option"
+          :disabled="loading"
+          @click="$emit('subscribe')"
+        >
+          <span class="subscription-option-badge">Best Deal</span>
+          <span class="subscription-option-credits">{{ SUBSCRIPTION.credits }}</span>
+          <span class="subscription-option-label">snaps/month</span>
+          <span class="subscription-option-price">{{ SUBSCRIPTION.price }}/mo</span>
+          <span class="subscription-option-hint">Cancel anytime</span>
+        </button>
+
+        <div class="paywall-divider"><span>or buy once</span></div>
 
         <div class="credit-packs">
           <button
@@ -103,7 +117,7 @@ const handleEmailSubmit = () => {
           </button>
         </div>
 
-        <p class="paywall-hint">One-time purchase. No subscription.</p>
+        <p class="paywall-hint">One-time purchase. Credits never expire.</p>
       </template>
 
       <button class="paywall-btn paywall-btn-text" @click="$emit('close')">
@@ -306,6 +320,66 @@ const handleEmailSubmit = () => {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+/* Subscription Option */
+.subscription-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--primary);
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.subscription-option:hover {
+  background: rgba(76, 175, 80, 0.18);
+}
+
+.subscription-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.subscription-option-badge {
+  position: absolute;
+  top: -0.6rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--primary);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  white-space: nowrap;
+}
+
+.subscription-option-credits {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.subscription-option-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.subscription-option-price {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.subscription-option-hint {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
 }
 
 /* Credit Packs */

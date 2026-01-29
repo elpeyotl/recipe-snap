@@ -44,6 +44,13 @@ export default async function handler(req, res) {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object
+
+      // Subscription checkouts are handled by invoice.paid
+      if (session.mode === 'subscription') {
+        console.log('Subscription checkout completed, credits handled by invoice.paid')
+        return res.status(200).json({ received: true })
+      }
+
       const { userId, credits, amount, packName } = session.metadata
 
       if (!userId || !credits) {
@@ -66,8 +73,71 @@ export default async function handler(req, res) {
       }
 
       if (!data) {
-        // Already processed (idempotent check)
         console.log('Session already processed:', session.id)
+      }
+    }
+
+    // Subscription credit refill (initial + renewals)
+    if (event.type === 'invoice.paid') {
+      const invoice = event.data.object
+      if (invoice.subscription) {
+        const subscription = await stripe.subscriptions.retrieve(invoice.subscription)
+        const userId = subscription.metadata.userId
+        const credits = parseInt(subscription.metadata.credits || '80')
+
+        if (userId) {
+          const { error } = await supabase.rpc('refill_subscription_credits', {
+            p_user_id: userId,
+            p_credits: credits,
+            p_stripe_invoice_id: invoice.id,
+            p_subscription_id: invoice.subscription,
+            p_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+          })
+
+          if (error) {
+            console.error('Failed to refill subscription credits:', error)
+          }
+        }
+      }
+    }
+
+    // Subscription status changes (cancel at period end, past_due)
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object
+      const userId = subscription.metadata.userId
+
+      if (userId) {
+        let status = 'active'
+        if (subscription.cancel_at_period_end) status = 'canceled'
+        if (subscription.status === 'past_due') status = 'past_due'
+
+        await supabase
+          .from('profiles')
+          .update({
+            subscription_status: status,
+            subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
+      }
+    }
+
+    // Subscription fully ended
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object
+      const userId = subscription.metadata.userId
+
+      if (userId) {
+        await supabase
+          .from('profiles')
+          .update({
+            subscription_status: 'none',
+            subscription_credits: 0,
+            subscription_id: null,
+            subscription_period_end: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
       }
     }
 

@@ -1155,6 +1155,99 @@ body {
   white-space: nowrap;
 }
 
+/* Subscription Styles */
+.subscription-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.subscription-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.subscription-plan-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.subscription-status-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+  font-weight: 500;
+}
+
+.subscription-status-badge.active {
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--primary);
+}
+
+.subscription-status-badge.canceled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.subscription-status-badge.past_due {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.subscription-credits-bar {
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.subscription-credits-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.subscription-credits-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.subscription-promo {
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.subscription-promo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.subscription-promo-text strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.subscription-promo-text span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 /* Utility Styles */
 .btn-block {
   display: block;

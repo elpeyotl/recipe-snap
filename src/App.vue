@@ -8,12 +8,12 @@ import { useFavorites } from './composables/useFavorites'
 import { useSearchHistory } from './composables/useSearchHistory'
 import { usePurchaseHistory } from './composables/usePurchaseHistory'
 import { useSettings } from './composables/useSettings'
-import { buyCredits } from './services/stripe'
+import { buyCredits, buySubscription, openCustomerPortal } from './services/stripe'
 import PaywallModal from './components/PaywallModal.vue'
 
 // Auth & Credits
-const { user, profile, loading: authLoading, isLoggedIn, credits, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
-const { freeSnapsRemaining, canSnap, needsLogin, needsCredits, useSnap } = useCredits()
+const { user, profile, loading: authLoading, isLoggedIn, credits, subscriptionStatus, subscriptionPeriodEnd, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
+const { freeSnapsRemaining, canSnap, needsLogin, needsCredits, useSnap, totalCredits, subscriptionCredits, hasActiveSubscription } = useCredits()
 const { favorites, isFavorite, toggleFavorite: toggleFav, init: initFavorites } = useFavorites()
 const { searchHistory, addToHistory, init: initHistory } = useSearchHistory()
 const { purchases, loading: purchasesLoading, fetchPurchases } = usePurchaseHistory()
@@ -511,6 +511,25 @@ const handleBuyCredits = async (packName) => {
     purchaseLoading.value = false
   }
 }
+
+const handleSubscribe = async () => {
+  purchaseLoading.value = true
+  try {
+    await buySubscription()
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    purchaseLoading.value = false
+  }
+}
+
+const handleManageSubscription = async () => {
+  try {
+    await openCustomerPortal()
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
@@ -616,10 +635,13 @@ const handleBuyCredits = async (packName) => {
       <div v-if="!isLoggedIn && freeSnapsRemaining > 0" class="snaps-remaining">
         {{ freeSnapsRemaining }} free snap{{ freeSnapsRemaining === 1 ? '' : 's' }} remaining
       </div>
+      <div v-else-if="isLoggedIn && hasActiveSubscription && subscriptionCredits > 0" class="snaps-remaining">
+        {{ subscriptionCredits }} snap{{ subscriptionCredits === 1 ? '' : 's' }} remaining<template v-if="credits > 0"> + {{ credits }} bonus</template>
+      </div>
       <div v-else-if="isLoggedIn && credits > 0" class="snaps-remaining">
         {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining
       </div>
-      <div v-else-if="isLoggedIn && credits <= 0" class="snaps-remaining snaps-warning">
+      <div v-else-if="isLoggedIn && totalCredits <= 0" class="snaps-remaining snaps-warning">
         No credits remaining
       </div>
 
@@ -1076,13 +1098,45 @@ const handleBuyCredits = async (packName) => {
           <div class="account-info">
             <div class="account-email">{{ user?.email }}</div>
             <div class="account-credits">
-              {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining
+              <template v-if="hasActiveSubscription">
+                {{ subscriptionCredits }}/80 subscription + {{ credits }} purchased
+              </template>
+              <template v-else>
+                {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining
+              </template>
             </div>
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" @click="haptic(); openBuyCredits()">
-          Buy More Credits
+        <!-- Subscription Status -->
+        <div v-if="hasActiveSubscription" class="subscription-card">
+          <div class="subscription-card-header">
+            <span class="subscription-plan-name">Monthly Plan</span>
+            <span class="subscription-status-badge" :class="subscriptionStatus">
+              {{ subscriptionStatus === 'canceled' ? 'Cancels' : 'Renews' }}
+              {{ formatDate(subscriptionPeriodEnd) }}
+            </span>
+          </div>
+          <div class="subscription-credits-bar">
+            <div class="subscription-credits-fill" :style="{ width: (subscriptionCredits / 80 * 100) + '%' }"></div>
+          </div>
+          <div class="subscription-credits-label">{{ subscriptionCredits }} / 80 snaps remaining</div>
+          <button class="btn btn-secondary btn-block" @click="haptic(); handleManageSubscription()">
+            Manage Subscription
+          </button>
+        </div>
+        <div v-else class="subscription-promo">
+          <div class="subscription-promo-text">
+            <strong>80 snaps/month for $4.99</strong>
+            <span>Cancel anytime</span>
+          </div>
+          <button class="btn btn-primary btn-block" @click="haptic(); handleSubscribe()">
+            Subscribe
+          </button>
+        </div>
+
+        <button class="btn btn-secondary btn-block" @click="haptic(); openBuyCredits()">
+          Buy Credit Pack
         </button>
 
         <h3 class="settings-subtitle">Purchase History</h3>
@@ -1145,6 +1199,7 @@ const handleBuyCredits = async (packName) => {
       @login-apple="handleLoginApple"
       @login-email="handleLoginEmail"
       @buy="handleBuyCredits"
+      @subscribe="handleSubscribe"
     />
   </div>
 </template>

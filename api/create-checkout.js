@@ -14,6 +14,12 @@ const PACKS = {
   pro: { credits: 100, priceId: process.env.STRIPE_PRO_PRICE_ID, amount: 8.99 }
 }
 
+const SUBSCRIPTION = {
+  credits: 80,
+  priceId: process.env.STRIPE_MONTHLY_PRICE_ID,
+  amount: 4.99
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -33,14 +39,69 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
-    const { packName } = req.body
+    const { packName, type } = req.body
+
+    // Subscription checkout
+    if (type === 'subscription') {
+      if (!SUBSCRIPTION.priceId) {
+        return res.status(500).json({ error: 'Subscription not configured' })
+      }
+
+      // Check if user already has an active subscription
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id, subscription_status')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.subscription_status === 'active') {
+        return res.status(400).json({ error: 'Already subscribed' })
+      }
+
+      // Get or create Stripe customer
+      let customerId = profile?.stripe_customer_id
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { userId: user.id }
+        })
+        customerId = customer.id
+        await supabase
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id)
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: SUBSCRIPTION.priceId, quantity: 1 }],
+        metadata: {
+          userId: user.id,
+          type: 'subscription',
+          credits: SUBSCRIPTION.credits.toString()
+        },
+        subscription_data: {
+          metadata: {
+            userId: user.id,
+            credits: SUBSCRIPTION.credits.toString()
+          }
+        },
+        success_url: `${req.headers.origin}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin}`
+      })
+
+      return res.status(200).json({ url: session.url })
+    }
+
+    // One-time credit pack checkout
     const pack = PACKS[packName]
 
     if (!pack) {
       return res.status(400).json({ error: 'Invalid pack' })
     }
 
-    // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],

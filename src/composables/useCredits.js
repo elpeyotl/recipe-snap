@@ -10,15 +10,16 @@ const STORAGE_KEY = 'recipesnap_free_snaps'
 const freeSnapsUsed = ref(parseInt(localStorage.getItem(STORAGE_KEY) || '0'))
 
 export function useCredits() {
-  const { isLoggedIn, credits, fetchProfile } = useAuth()
+  const { isLoggedIn, credits, subscriptionCredits, hasActiveSubscription, fetchProfile } = useAuth()
+
+  const totalCredits = computed(() => subscriptionCredits.value + credits.value)
 
   const freeSnapsRemaining = computed(() => Math.max(0, FREE_SNAPS_LIMIT - freeSnapsUsed.value))
 
   const canSnap = computed(() => {
     if (!LIMIT_SNAPS) return true
-    // Free snaps available (no login needed)
     if (freeSnapsRemaining.value > 0) return true
-    // Logged in with credits
+    if (isLoggedIn.value && hasActiveSubscription.value && subscriptionCredits.value > 0) return true
     if (isLoggedIn.value && credits.value > 0) return true
     return false
   })
@@ -30,7 +31,7 @@ export function useCredits() {
 
   const needsCredits = computed(() => {
     if (!LIMIT_SNAPS) return false
-    return freeSnapsRemaining.value <= 0 && isLoggedIn.value && credits.value <= 0
+    return freeSnapsRemaining.value <= 0 && isLoggedIn.value && totalCredits.value <= 0
   })
 
   async function useSnap() {
@@ -76,6 +77,9 @@ export function useCredits() {
     needsLogin,
     needsCredits,
     useSnap,
+    totalCredits,
+    subscriptionCredits,
+    hasActiveSubscription,
     FREE_SNAPS_LIMIT
   }
 }
