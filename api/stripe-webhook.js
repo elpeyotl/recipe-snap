@@ -86,12 +86,16 @@ export default async function handler(req, res) {
         const credits = parseInt(subscription.metadata.credits || '80')
 
         if (userId) {
+          // current_period_end moved to subscription items in newer Stripe API versions
+          const periodEnd = subscription.current_period_end
+            || subscription.items?.data?.[0]?.current_period_end
+
           const { error } = await supabase.rpc('refill_subscription_credits', {
             p_user_id: userId,
             p_credits: credits,
             p_stripe_invoice_id: invoice.id,
             p_subscription_id: invoice.subscription,
-            p_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            p_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : new Date().toISOString()
           })
 
           if (error) {
@@ -111,14 +115,27 @@ export default async function handler(req, res) {
         if (subscription.cancel_at_period_end) status = 'canceled'
         if (subscription.status === 'past_due') status = 'past_due'
 
-        await supabase
+        // current_period_end moved to subscription items in newer Stripe API versions
+        const periodEnd = subscription.current_period_end
+          || subscription.items?.data?.[0]?.current_period_end
+
+        const updateData = {
+          subscription_status: status,
+          subscription_id: subscription.id,
+          updated_at: new Date().toISOString()
+        }
+        if (periodEnd) {
+          updateData.subscription_period_end = new Date(periodEnd * 1000).toISOString()
+        }
+
+        const { error } = await supabase
           .from('profiles')
-          .update({
-            subscription_status: status,
-            subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', userId)
+
+        if (error) {
+          console.error('Failed to update subscription status:', error)
+        }
       }
     }
 
