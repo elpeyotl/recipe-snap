@@ -1,7 +1,29 @@
+// Resize image to fit within Vercel's 4.5MB request body limit
+function resizeImage(dataUrl, maxWidth = 1280, quality = 0.7) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let { width, height } = img
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.src = dataUrl
+  })
+}
+
 export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings = 2, maxTime = 0, language = 'en') {
-  // Extract base64 data from data URL
-  const base64Data = imageDataUrl.split(',')[1]
-  const mimeType = imageDataUrl.split(';')[0].split(':')[1]
+  // Resize to keep payload under Vercel's 4.5MB limit
+  const resized = await resizeImage(imageDataUrl)
+  const base64Data = resized.split(',')[1]
+  const mimeType = resized.split(';')[0].split(':')[1]
 
   const response = await fetch('/api/analyze-image', {
     method: 'POST',
