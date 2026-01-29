@@ -2,20 +2,17 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { analyzeImage, regenerateFromIngredients } from './api/gemini'
 import { fetchRecipeImage } from './api/imageGen'
-import { useMonetization } from './composables/useMonetization'
+import { useAuth } from './composables/useAuth'
+import { useCredits } from './composables/useCredits'
+import { buyCredits } from './services/stripe'
 import PaywallModal from './components/PaywallModal.vue'
 
-// Monetization
-const {
-  snapCount,
-  isUnlocked,
-  incrementSnap,
-  shouldShowPaywall,
-  getRemainingFreeSnaps,
-  FREE_SNAPS
-} = useMonetization()
+// Auth & Credits
+const { user, profile, loading: authLoading, isLoggedIn, credits, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
+const { freeSnapsRemaining, canSnap, needsLogin, needsCredits, useSnap } = useCredits()
 
 const showPaywall = ref(false)
+const purchaseLoading = ref(false)
 
 // App state
 const currentView = ref('camera') // camera, preview, loading, results, detail, favorites, settings
@@ -58,7 +55,17 @@ const maxTime = ref(0) // 0 = no limit, otherwise minutes
 const language = ref('en') // Recipe language
 
 // Load settings from localStorage
-onMounted(() => {
+onMounted(async () => {
+  // Initialize auth
+  await initAuth()
+
+  // Handle Stripe checkout return
+  const urlParams = new URLSearchParams(window.location.search)
+  if (urlParams.has('session_id')) {
+    await fetchProfile()
+    window.history.replaceState({}, '', window.location.pathname)
+  }
+
   const savedFavorites = localStorage.getItem('recipesnap_favorites')
   if (savedFavorites) favorites.value = JSON.parse(savedFavorites)
 
@@ -273,8 +280,8 @@ const handleFileSelect = (event) => {
 
 // Analyze the image
 const analyzeIngredients = async () => {
-  // Check paywall before proceeding
-  if (shouldShowPaywall()) {
+  // Check if user can snap
+  if (!canSnap.value) {
     showPaywall.value = true
     return
   }
@@ -288,8 +295,13 @@ const analyzeIngredients = async () => {
     ingredients.value = result.ingredients
     originalIngredients.value = [...result.ingredients] // Store original for comparison
 
-    // Increment snap count after successful analysis
-    incrementSnap()
+    // Deduct snap credit after successful analysis
+    const snapResult = await useSnap()
+    if (!snapResult.success) {
+      error.value = snapResult.error || 'Failed to use snap credit'
+      currentView.value = 'preview'
+      return
+    }
 
     // Show results immediately with placeholder images
     recipes.value = result.recipes.map(recipe => ({
@@ -514,14 +526,28 @@ const shareApp = async () => {
   }
 }
 
-// Handle paywall close
-const closePaywall = () => {
-  showPaywall.value = false
+// Auth event handlers
+const handleLoginGoogle = async () => {
+  await signInWithGoogle()
 }
 
-// Handle unlock from paywall
-const handleUnlocked = () => {
-  showPaywall.value = false
+const handleLoginApple = async () => {
+  await signInWithApple()
+}
+
+const handleLoginEmail = async (email) => {
+  await signInWithEmail(email)
+}
+
+const handleBuyCredits = async (packName) => {
+  purchaseLoading.value = true
+  try {
+    await buyCredits(packName)
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    purchaseLoading.value = false
+  }
 }
 </script>
 
@@ -621,12 +647,15 @@ const handleUnlocked = () => {
       </button>
       <p class="camera-hint">Tap to snap your ingredients</p>
 
-      <!-- Free snaps remaining indicator -->
-      <div v-if="!isUnlocked && getRemainingFreeSnaps() > 0" class="snaps-remaining">
-        {{ getRemainingFreeSnaps() }} free snap{{ getRemainingFreeSnaps() === 1 ? '' : 's' }} remaining
+      <!-- Snaps/credits remaining indicator -->
+      <div v-if="!isLoggedIn && freeSnapsRemaining > 0" class="snaps-remaining">
+        {{ freeSnapsRemaining }} free snap{{ freeSnapsRemaining === 1 ? '' : 's' }} remaining
       </div>
-      <div v-else-if="isUnlocked" class="snaps-unlimited">
-        Unlimited snaps
+      <div v-else-if="isLoggedIn && credits > 0" class="snaps-remaining">
+        {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining
+      </div>
+      <div v-else-if="isLoggedIn && credits <= 0" class="snaps-remaining snaps-warning">
+        No credits remaining
       </div>
 
       <!-- Active filters indicator -->
@@ -1064,6 +1093,23 @@ const handleUnlocked = () => {
         </label>
       </div>
 
+      <!-- Account Section -->
+      <h3 class="settings-subtitle">Account</h3>
+      <div v-if="isLoggedIn" class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">{{ user?.email }}</span>
+          <span class="setting-hint">{{ credits }} credit{{ credits === 1 ? '' : 's' }}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" @click="signOut">Sign Out</button>
+      </div>
+      <div v-else class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">Not signed in</span>
+          <span class="setting-hint">Sign in to save your credits</span>
+        </div>
+        <button class="btn btn-primary btn-sm" @click="showPaywall = true">Sign In</button>
+      </div>
+
     </div>
 
     <!-- Floating action button - new scan -->
@@ -1082,8 +1128,14 @@ const handleUnlocked = () => {
     <!-- Paywall Modal -->
     <PaywallModal
       v-if="showPaywall"
-      @close="closePaywall"
-      @unlocked="handleUnlocked"
+      :needs-login="needsLogin"
+      :needs-credits="needsCredits"
+      :loading="purchaseLoading"
+      @close="showPaywall = false"
+      @login-google="handleLoginGoogle"
+      @login-apple="handleLoginApple"
+      @login-email="handleLoginEmail"
+      @buy="handleBuyCredits"
     />
   </div>
 </template>
