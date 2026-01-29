@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { analyzeImage, regenerateFromIngredients } from './api/gemini'
 import { fetchRecipeImage } from './api/imageGen'
 import { useMonetization } from './composables/useMonetization'
@@ -107,6 +107,50 @@ onMounted(() => {
 
   // Apply dark mode
   if (darkMode.value) document.documentElement.classList.add('dark')
+})
+
+// Browser history integration (enables Android back gesture / browser back button)
+const navigableViews = ['camera', 'results', 'detail', 'favorites', 'settings']
+let isPopState = false // Flag to prevent pushing state when handling popstate
+
+const onPopState = (event) => {
+  const view = event.state?.view
+  if (view && navigableViews.includes(view)) {
+    isPopState = true
+    if (view === 'results' && currentView.value === 'detail') {
+      selectedRecipe.value = null
+    }
+    currentView.value = view
+  } else {
+    // No state (initial entry) - go to camera
+    isPopState = true
+    currentView.value = 'camera'
+    selectedRecipe.value = null
+  }
+}
+
+window.addEventListener('popstate', onPopState)
+onUnmounted(() => window.removeEventListener('popstate', onPopState))
+
+// Replace initial history entry with current view
+history.replaceState({ view: 'camera' }, '')
+
+let replaceNextState = false // Flag to replace instead of push (used by resetCamera)
+
+watch(currentView, (newView, oldView) => {
+  if (isPopState) {
+    isPopState = false
+    return
+  }
+  // Only push navigable views (skip loading/preview which are transient)
+  if (navigableViews.includes(newView)) {
+    if (replaceNextState) {
+      replaceNextState = false
+      history.replaceState({ view: newView }, '')
+    } else {
+      history.pushState({ view: newView }, '')
+    }
+  }
 })
 
 // Watch and save settings
@@ -315,6 +359,7 @@ const regenerateRecipes = async () => {
 
 // Reset to camera
 const resetCamera = () => {
+  replaceNextState = true
   currentView.value = 'camera'
   imageData.value = null
   ingredients.value = []
@@ -368,8 +413,7 @@ const viewRecipe = (recipe) => {
 
 // Back to results
 const backToResults = () => {
-  currentView.value = 'results'
-  selectedRecipe.value = null
+  history.back()
 }
 
 // Share recipe
@@ -427,13 +471,7 @@ const viewFavoriteRecipe = (recipe) => {
 
 // Back from favorites/settings
 const goBack = () => {
-  // Go back to previous view, but not to loading/preview states
-  const validViews = ['camera', 'results', 'detail']
-  if (validViews.includes(previousView.value)) {
-    currentView.value = previousView.value
-  } else {
-    currentView.value = 'camera'
-  }
+  history.back()
 }
 
 // Image loaded handler
@@ -784,16 +822,6 @@ const handleUnlocked = () => {
         </div>
       </div>
 
-      <!-- Start Again Button -->
-      <div class="start-again">
-        <button class="start-again-btn" @click="haptic('medium'); resetCamera()">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          <span>Scan new ingredients</span>
-        </button>
-      </div>
     </div>
 
     <!-- Recipe Detail View -->
@@ -880,16 +908,6 @@ const handleUnlocked = () => {
         </div>
       </div>
 
-      <!-- Start Again Button -->
-      <div class="start-again">
-        <button class="start-again-btn" @click="haptic('medium'); resetCamera()">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          <span>Scan new ingredients</span>
-        </button>
-      </div>
     </div>
 
     <!-- Favorites View -->
@@ -1047,6 +1065,19 @@ const handleUnlocked = () => {
       </div>
 
     </div>
+
+    <!-- Floating action button - new scan -->
+    <button
+      v-if="currentView === 'results' || currentView === 'detail'"
+      class="fab"
+      @click="haptic('medium'); resetCamera()"
+      title="Scan new ingredients"
+    >
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </button>
 
     <!-- Paywall Modal -->
     <PaywallModal
