@@ -11,10 +11,17 @@ const LANGUAGE_NAMES = {
 }
 
 function buildPrompt(dietaryFilters, servings, maxTime, language) {
-  let prompt = `You are a helpful cooking assistant. Analyze this image of food ingredients and:
+  let prompt = `You are an experienced chef. Analyze this image of food ingredients and:
 
 1. Identify all visible ingredients
-2. Suggest 3-5 recipes that can be made with these ingredients`
+2. Suggest 3-5 REAL, well-known recipes from established cuisines (e.g. Italian, Mexican, Asian, French, American comfort food, etc.)
+
+CRITICAL RULES:
+- Only suggest dishes that actually exist and are commonly prepared. No invented or experimental combinations.
+- Group ingredients that naturally belong together. Not every ingredient needs to be used in every recipe.
+- If some ingredients don't fit together (e.g. chocolate next to vegetables), use them in SEPARATE recipes or leave them out entirely.
+- Each recipe should use a coherent subset of the available ingredients that makes culinary sense.
+- Prefer classic, recognizable dishes over creative fusions.`
 
   if (language && language !== 'en') {
     prompt += `\n\nIMPORTANT: Respond entirely in ${LANGUAGE_NAMES[language] || 'English'}. All recipe names, descriptions, ingredients, steps, and suggested additions must be in ${LANGUAGE_NAMES[language] || 'English'}. Only the imageSearch field should remain in English for image lookup.`
@@ -55,7 +62,7 @@ For suggestedAdditions: Suggest 1-3 common ingredients NOT in the photo that wou
 
 IMPORTANT for imageSearch: Use a simple, common, well-known dish name that would return good food photos (e.g. "fried rice", "omelette", "salad bowl", "grilled chicken"). Avoid unique or creative names.
 
-Keep recipes practical and achievable. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
+IMPORTANT: Only suggest real dishes that people actually cook. Think of recipes you'd find in a cookbook or on a popular cooking website. Do NOT force incompatible ingredients together. It's better to use fewer ingredients well than to create a strange combination using all of them. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
 
   return prompt
 }
@@ -93,7 +100,7 @@ export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings =
           },
         ],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.4,
           maxOutputTokens: 2048,
         },
       }),
@@ -129,9 +136,16 @@ export async function analyzeImage(imageDataUrl, dietaryFilters = '', servings =
 }
 
 function buildTextPrompt(ingredients, dietaryFilters, servings, maxTime, language) {
-  let prompt = `You are a helpful cooking assistant. Based on these ingredients: ${ingredients.join(', ')}
+  let prompt = `You are an experienced chef. Based on these ingredients: ${ingredients.join(', ')}
 
-Suggest 3-5 recipes that can be made with these ingredients.`
+Suggest 3-5 REAL, well-known recipes from established cuisines.
+
+CRITICAL RULES:
+- Only suggest dishes that actually exist and are commonly prepared. No invented or experimental combinations.
+- Group ingredients that naturally belong together. Not every ingredient needs to be used in every recipe.
+- If some ingredients don't fit together (e.g. chocolate next to vegetables), use them in SEPARATE recipes or leave them out entirely.
+- Each recipe should use a coherent subset of the available ingredients that makes culinary sense.
+- Prefer classic, recognizable dishes over creative fusions.`
 
   if (language && language !== 'en') {
     prompt += `\n\nIMPORTANT: Respond entirely in ${LANGUAGE_NAMES[language] || 'English'}. All recipe names, descriptions, ingredients, steps, and suggested additions must be in ${LANGUAGE_NAMES[language] || 'English'}. Only the imageSearch field should remain in English for image lookup.`
@@ -171,7 +185,7 @@ For suggestedAdditions: Suggest 1-3 common ingredients NOT provided that would e
 
 IMPORTANT for imageSearch: Use a simple, common, well-known dish name that would return good food photos.
 
-Keep recipes practical and achievable. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
+IMPORTANT: Only suggest real dishes that people actually cook. Think of recipes you'd find in a cookbook or on a popular cooking website. Do NOT force incompatible ingredients together. It's better to use fewer ingredients well than to create a strange combination using all of them. Assume the user has basic pantry staples (salt, pepper, oil, common spices).`
 
   return prompt
 }
@@ -199,7 +213,7 @@ export async function regenerateFromIngredients(ingredients, dietaryFilters = ''
           },
         ],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.4,
           maxOutputTokens: 2048,
         },
       }),
