@@ -4,14 +4,23 @@ import { analyzeImage, regenerateFromIngredients } from './api/gemini'
 import { fetchRecipeImage } from './api/imageGen'
 import { useAuth } from './composables/useAuth'
 import { useCredits } from './composables/useCredits'
+import { useFavorites } from './composables/useFavorites'
+import { useSearchHistory } from './composables/useSearchHistory'
+import { usePurchaseHistory } from './composables/usePurchaseHistory'
+import { useSettings } from './composables/useSettings'
 import { buyCredits } from './services/stripe'
 import PaywallModal from './components/PaywallModal.vue'
 
 // Auth & Credits
 const { user, profile, loading: authLoading, isLoggedIn, credits, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
 const { freeSnapsRemaining, canSnap, needsLogin, needsCredits, useSnap } = useCredits()
+const { favorites, isFavorite, toggleFavorite: toggleFav, init: initFavorites } = useFavorites()
+const { searchHistory, addToHistory, init: initHistory } = useSearchHistory()
+const { purchases, loading: purchasesLoading, fetchPurchases } = usePurchaseHistory()
+const { darkMode, servings, dietaryFilters, maxTime, language, init: initSettings } = useSettings()
 
 const showPaywall = ref(false)
+const forceCreditsMode = ref(false)
 const purchaseLoading = ref(false)
 
 // App state
@@ -34,30 +43,14 @@ const newIngredientValue = ref('') // New ingredient input value
 // File input ref
 const fileInput = ref(null)
 
-// Favorites
-const favorites = ref([])
-
-// Search history (last 3 searches)
-const HISTORY_KEY = 'recipesnap_history'
-const MAX_HISTORY = 3
-const searchHistory = ref([])
-
-// Settings
-const darkMode = ref(true)
-const servings = ref(2)
-const dietaryFilters = ref({
-  vegetarian: false,
-  vegan: false,
-  glutenFree: false,
-  dairyFree: false
-})
-const maxTime = ref(0) // 0 = no limit, otherwise minutes
-const language = ref('en') // Recipe language
 
 // Load settings from localStorage
 onMounted(async () => {
-  // Initialize auth
+  // Initialize auth, then composables (which auto-sync on login)
   await initAuth()
+  await initSettings()
+  await initFavorites()
+  await initHistory()
 
   // Handle Stripe checkout return
   const urlParams = new URLSearchParams(window.location.search)
@@ -65,29 +58,6 @@ onMounted(async () => {
     await fetchProfile()
     window.history.replaceState({}, '', window.location.pathname)
   }
-
-  const savedFavorites = localStorage.getItem('recipesnap_favorites')
-  if (savedFavorites) favorites.value = JSON.parse(savedFavorites)
-
-  const savedHistory = localStorage.getItem(HISTORY_KEY)
-  if (savedHistory) {
-    try { searchHistory.value = JSON.parse(savedHistory) } catch (e) { /* ignore */ }
-  }
-
-  const savedDarkMode = localStorage.getItem('recipesnap_darkmode')
-  if (savedDarkMode) darkMode.value = JSON.parse(savedDarkMode)
-
-  const savedFilters = localStorage.getItem('recipesnap_filters')
-  if (savedFilters) dietaryFilters.value = JSON.parse(savedFilters)
-
-  const savedServings = localStorage.getItem('recipesnap_servings')
-  if (savedServings) servings.value = JSON.parse(savedServings)
-
-  const savedMaxTime = localStorage.getItem('recipesnap_maxtime')
-  if (savedMaxTime) maxTime.value = JSON.parse(savedMaxTime)
-
-  const savedLanguage = localStorage.getItem('recipesnap_language')
-  if (savedLanguage) language.value = savedLanguage
 
   // Restore last session (recipes, ingredients, view)
   const savedSession = localStorage.getItem('recipesnap_session')
@@ -112,8 +82,6 @@ onMounted(async () => {
     }
   }
 
-  // Apply dark mode
-  if (darkMode.value) document.documentElement.classList.add('dark')
 })
 
 // Browser history integration (enables Android back gesture / browser back button)
@@ -160,17 +128,6 @@ watch(currentView, (newView, oldView) => {
   }
 })
 
-// Watch and save settings
-watch(favorites, (val) => localStorage.setItem('recipesnap_favorites', JSON.stringify(val)), { deep: true })
-watch(darkMode, (val) => {
-  localStorage.setItem('recipesnap_darkmode', JSON.stringify(val))
-  document.documentElement.classList.toggle('dark', val)
-})
-watch(dietaryFilters, (val) => localStorage.setItem('recipesnap_filters', JSON.stringify(val)), { deep: true })
-watch(servings, (val) => localStorage.setItem('recipesnap_servings', JSON.stringify(val)))
-watch(maxTime, (val) => localStorage.setItem('recipesnap_maxtime', JSON.stringify(val)))
-watch(language, (val) => localStorage.setItem('recipesnap_language', val))
-
 // Save session when recipes or view changes (strip base64 images to avoid localStorage quota)
 watch([recipes, ingredients, currentView], () => {
   if (recipes.value.length > 0) {
@@ -187,18 +144,8 @@ watch([recipes, ingredients, currentView], () => {
   }
 }, { deep: true })
 
-// Check if recipe is favorited
-const isFavorite = (recipe) => favorites.value.some(f => f.name === recipe.name)
-
-// Toggle favorite
-const toggleFavorite = (recipe) => {
-  const index = favorites.value.findIndex(f => f.name === recipe.name)
-  if (index >= 0) {
-    favorites.value.splice(index, 1)
-  } else {
-    favorites.value.push({ ...recipe, savedAt: Date.now() })
-  }
-}
+// Toggle favorite (delegates to composable)
+const toggleFavorite = (recipe) => toggleFav(recipe)
 
 // Get active filters as string for prompt
 const activeFiltersText = computed(() => {
@@ -381,22 +328,8 @@ const resetCamera = () => {
   localStorage.removeItem('recipesnap_session')
 }
 
-// Save current search to history (strip image URLs - base64 data is too large for localStorage)
-const saveToHistory = () => {
-  if (!ingredients.value.length || !recipes.value.length) return
-  const entry = {
-    id: Date.now(),
-    ingredients: [...ingredients.value],
-    recipes: recipes.value.map(({ imageUrl, imageLoading, imageLoaded, ...rest }) => rest),
-    timestamp: Date.now()
-  }
-  // Remove duplicate (same ingredients) if exists
-  const filtered = searchHistory.value.filter(
-    h => h.ingredients.join(',') !== entry.ingredients.join(',')
-  )
-  searchHistory.value = [entry, ...filtered].slice(0, MAX_HISTORY)
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistory.value))
-}
+// Save current search to history (delegates to composable)
+const saveToHistory = () => addToHistory(ingredients.value, recipes.value)
 
 // Load a history entry
 const loadFromHistory = (entry) => {
@@ -538,6 +471,36 @@ const handleLoginEmail = async (email) => {
   await signInWithEmail(email)
 }
 
+// Account helpers
+const getUserInitial = computed(() => user.value?.email?.[0]?.toUpperCase() || '?')
+
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const openBuyCredits = () => {
+  forceCreditsMode.value = true
+  showPaywall.value = true
+}
+
+// Fetch purchases when entering settings
+watch(currentView, async (view) => {
+  if (view === 'settings' && isLoggedIn.value) await fetchPurchases()
+  if (view === 'favorites') loadFavoriteImages()
+})
+
+const loadFavoriteImages = () => {
+  favorites.value.forEach(async (fav, index) => {
+    if (fav.imageUrl) return
+    try {
+      const imageUrl = await fetchRecipeImage(fav)
+      if (favorites.value[index]) {
+        favorites.value[index] = { ...favorites.value[index], imageUrl }
+      }
+    } catch { /* ignore */ }
+  })
+}
+
 const handleBuyCredits = async (packName) => {
   purchaseLoading.value = true
   try {
@@ -573,7 +536,10 @@ const handleBuyCredits = async (packName) => {
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
         </button>
-        <button class="header-btn" @click="viewSettings" title="Settings">
+        <button v-if="isLoggedIn" class="header-avatar" @click="viewSettings" :title="user?.email">
+          {{ getUserInitial }}
+        </button>
+        <button v-else class="header-btn" @click="viewSettings" title="Settings">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -716,6 +682,13 @@ const handleBuyCredits = async (packName) => {
 
     <!-- Results View -->
     <div v-if="currentView === 'results'" class="container">
+      <button class="back-btn" @click="haptic(); resetCamera()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        New Scan
+      </button>
+
       <!-- Ingredients -->
       <div class="ingredients-section">
         <h2 class="ingredients-title">Detected Ingredients</h2>
@@ -964,7 +937,9 @@ const handleBuyCredits = async (packName) => {
         @click="viewFavoriteRecipe(recipe)"
       >
         <div class="recipe-image-container">
+          <div v-if="!recipe.imageUrl" class="skeleton-image"></div>
           <img
+            v-if="recipe.imageUrl"
             :src="recipe.imageUrl"
             :alt="recipe.name"
             class="recipe-image loaded"
@@ -1094,20 +1069,55 @@ const handleBuyCredits = async (packName) => {
 
       <!-- Account Section -->
       <h3 class="settings-subtitle">Account</h3>
-      <div v-if="isLoggedIn" class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">{{ user?.email }}</span>
-          <span class="setting-hint">{{ credits }} credit{{ credits === 1 ? '' : 's' }}</span>
+
+      <template v-if="isLoggedIn">
+        <div class="account-card">
+          <div class="account-avatar">{{ getUserInitial }}</div>
+          <div class="account-info">
+            <div class="account-email">{{ user?.email }}</div>
+            <div class="account-credits">
+              {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining
+            </div>
+          </div>
         </div>
-        <button class="btn btn-secondary btn-sm" @click="signOut">Sign Out</button>
-      </div>
-      <div v-else class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Not signed in</span>
-          <span class="setting-hint">Sign in to save your credits</span>
+
+        <button class="btn btn-primary btn-block" @click="haptic(); openBuyCredits()">
+          Buy More Credits
+        </button>
+
+        <h3 class="settings-subtitle">Purchase History</h3>
+        <div v-if="purchasesLoading" class="loading-state">Loading...</div>
+        <div v-else-if="!purchases.length" class="empty-state-small">
+          No purchases yet
         </div>
-        <button class="btn btn-primary btn-sm" @click="showPaywall = true">Sign In</button>
-      </div>
+        <div v-else class="purchase-list">
+          <div
+            v-for="purchase in purchases"
+            :key="purchase.id"
+            class="purchase-item"
+          >
+            <div class="purchase-info">
+              <div class="purchase-pack">{{ purchase.pack_name || 'Credit Pack' }}</div>
+              <div class="purchase-date">{{ formatDate(purchase.created_at) }}</div>
+            </div>
+            <div class="purchase-credits">+{{ purchase.credits_change }}</div>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary btn-block" @click="haptic(); signOut()">
+          Sign Out
+        </button>
+      </template>
+
+      <template v-else>
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Not signed in</span>
+            <span class="setting-hint">Sign in to sync your data across devices</span>
+          </div>
+          <button class="btn btn-primary btn-sm" @click="showPaywall = true">Sign In</button>
+        </div>
+      </template>
 
     </div>
 
@@ -1128,9 +1138,9 @@ const handleBuyCredits = async (packName) => {
     <PaywallModal
       v-if="showPaywall"
       :needs-login="needsLogin"
-      :needs-credits="needsCredits"
+      :needs-credits="forceCreditsMode || needsCredits"
       :loading="purchaseLoading"
-      @close="showPaywall = false"
+      @close="showPaywall = false; forceCreditsMode = false"
       @login-google="handleLoginGoogle"
       @login-apple="handleLoginApple"
       @login-email="handleLoginEmail"

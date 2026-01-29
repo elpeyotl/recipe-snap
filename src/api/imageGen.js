@@ -1,5 +1,4 @@
-// Cache generated images
-const imageCache = new Map()
+import { getCachedImage, setCachedImage } from '../services/imageCache'
 
 // Placeholder image for when generation fails
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
@@ -13,11 +12,10 @@ const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
 export async function fetchRecipeImage(recipe) {
   // Handle both string (recipe name) and object (full recipe)
   const recipeName = typeof recipe === 'string' ? recipe : recipe.name
-  const cacheKey = recipeName
 
-  if (imageCache.has(cacheKey)) {
-    return imageCache.get(cacheKey)
-  }
+  // Check IndexedDB cache first
+  const cached = await getCachedImage(recipeName)
+  if (cached) return cached
 
   try {
     console.log('Generating image for:', recipeName)
@@ -39,7 +37,6 @@ export async function fetchRecipeImage(recipe) {
 
     if (!response.ok) {
       console.error('Image generation error:', response.status)
-      imageCache.set(cacheKey, PLACEHOLDER_IMAGE)
       return PLACEHOLDER_IMAGE
     }
 
@@ -48,15 +45,13 @@ export async function fetchRecipeImage(recipe) {
     if (data.mimeType && data.data) {
       const imageUrl = `data:${data.mimeType};base64,${data.data}`
       console.log('Image generated successfully')
-      imageCache.set(cacheKey, imageUrl)
+      setCachedImage(recipeName, imageUrl)
       return imageUrl
     }
 
-    imageCache.set(cacheKey, PLACEHOLDER_IMAGE)
     return PLACEHOLDER_IMAGE
   } catch (err) {
     console.error('Image generation failed:', err)
-    imageCache.set(cacheKey, PLACEHOLDER_IMAGE)
     return PLACEHOLDER_IMAGE
   }
 }
