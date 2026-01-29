@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '../services/supabase'
 import { useAuth } from './useAuth'
 
-const FREE_SNAPS_LIMIT = 10
+const FREE_SNAPS_LIMIT = parseInt(import.meta.env.VITE_FREE_SNAPS || '10')
 const LIMIT_SNAPS = import.meta.env.VITE_LIMIT_SNAPS !== 'false'
 const STORAGE_KEY = 'recipesnap_free_snaps'
 

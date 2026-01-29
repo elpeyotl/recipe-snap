@@ -1,5 +1,3 @@
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-
 // Cache generated images
 const imageCache = new Map()
 
@@ -21,70 +19,37 @@ export async function fetchRecipeImage(recipe) {
     return imageCache.get(cacheKey)
   }
 
-  if (!API_KEY) {
-    return PLACEHOLDER_IMAGE
-  }
-
   try {
-    console.log('Generating image with Nano Banana for:', recipeName)
+    console.log('Generating image for:', recipeName)
 
-    // Build a detailed prompt if we have full recipe info
-    let prompt
-    if (typeof recipe === 'object' && recipe.ingredients) {
-      const ingredientsList = recipe.ingredients.slice(0, 6).join(', ')
-      prompt = `Generate a beautiful, appetizing food photography image of this recipe:
+    const ingredients = typeof recipe === 'object' && recipe.ingredients
+      ? recipe.ingredients.slice(0, 6)
+      : []
+    const description = typeof recipe === 'object' ? (recipe.description || '') : ''
 
-Recipe: ${recipe.name}
-Main ingredients: ${ingredientsList}
-Description: ${recipe.description || ''}
-
-The dish should be plated nicely on a clean plate or bowl, professionally lit, shot from above or at a 45-degree angle. Professional food photography style, appetizing and delicious looking.`
-    } else {
-      prompt = `Generate a beautiful, appetizing food photography image of "${recipeName}". The dish should be plated nicely on a clean plate, with good lighting, shot from above or at a 45-degree angle. Professional food photography style.`
-    }
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"]
-          }
-        })
-      }
-    )
+    const response = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipeName,
+        ingredients,
+        description
+      })
+    })
 
     if (!response.ok) {
-      const error = await response.json()
-      console.error('Image generation error:', error)
+      console.error('Image generation error:', response.status)
       imageCache.set(cacheKey, PLACEHOLDER_IMAGE)
       return PLACEHOLDER_IMAGE
     }
 
     const data = await response.json()
 
-    // Extract image from response
-    const parts = data.candidates?.[0]?.content?.parts
-    if (parts) {
-      for (const part of parts) {
-        if (part.inlineData) {
-          const imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-          console.log('Image generated successfully')
-          imageCache.set(cacheKey, imageUrl)
-          return imageUrl
-        }
-      }
+    if (data.mimeType && data.data) {
+      const imageUrl = `data:${data.mimeType};base64,${data.data}`
+      console.log('Image generated successfully')
+      imageCache.set(cacheKey, imageUrl)
+      return imageUrl
     }
 
     imageCache.set(cacheKey, PLACEHOLDER_IMAGE)

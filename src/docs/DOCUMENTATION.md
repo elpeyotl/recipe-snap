@@ -154,14 +154,12 @@ Photo → Gemini (analyze) → Ingredients + Recipes JSON
 ## Environment Variables
 
 ```env
-VITE_GEMINI_API_KEY=your_gemini_api_key_here
-VITE_UNLOCK_CODE=your_unlock_code_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_GEMINI_API_KEY` | Google Gemini API key for image analysis and recipe generation |
-| `VITE_UNLOCK_CODE` | Unlock code users can enter to bypass paywall and get unlimited snaps |
+| `GEMINI_API_KEY` | Google Gemini API key (server-side only, used by Vercel API routes) |
 
 ---
 

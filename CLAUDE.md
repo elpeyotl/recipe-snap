@@ -26,7 +26,7 @@ src/
 
 ## Environment Variables
 ```
-VITE_GEMINI_API_KEY=your_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ## Core Features (Done)
