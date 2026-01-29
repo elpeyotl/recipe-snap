@@ -10,6 +10,8 @@ import { usePurchaseHistory } from './composables/usePurchaseHistory'
 import { useSettings } from './composables/useSettings'
 import { buyCredits, buySubscription, openCustomerPortal } from './services/stripe'
 import PaywallModal from './components/PaywallModal.vue'
+import LegalModal from './components/LegalModal.vue'
+import BaseSheet from './components/BaseSheet.vue'
 
 // Auth & Credits
 const { user, profile, loading: authLoading, isLoggedIn, credits, subscriptionStatus, subscriptionPeriodEnd, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
@@ -24,7 +26,9 @@ const forceCreditsMode = ref(false)
 const forceLoginMode = ref(false)
 const purchaseLoading = ref(false)
 const showFavorites = ref(false)
+const showHistory = ref(false)
 const showSettings = ref(false)
+const legalModal = ref(null) // 'privacy' | 'terms' | null
 
 // App state
 const hasSeenLanding = localStorage.getItem('recipesnap_seen_landing')
@@ -109,17 +113,8 @@ const onPopState = (event) => {
 
 window.addEventListener('popstate', onPopState)
 
-const onEscKey = (e) => {
-  if (e.key === 'Escape') {
-    if (showFavorites.value) showFavorites.value = false
-    else if (showSettings.value) showSettings.value = false
-  }
-}
-window.addEventListener('keydown', onEscKey)
-
 onUnmounted(() => {
   window.removeEventListener('popstate', onPopState)
-  window.removeEventListener('keydown', onEscKey)
 })
 
 // Replace initial history entry with current view
@@ -418,12 +413,21 @@ const scaleIngredient = (ingredient, originalServings = 2) => {
 // View favorites
 const viewFavorites = () => {
   showSettings.value = false
+  showHistory.value = false
   showFavorites.value = !showFavorites.value
+}
+
+// View history
+const viewHistory = () => {
+  showSettings.value = false
+  showFavorites.value = false
+  showHistory.value = !showHistory.value
 }
 
 // View settings
 const viewSettings = () => {
   showFavorites.value = false
+  showHistory.value = false
   showSettings.value = !showSettings.value
 }
 
@@ -469,6 +473,18 @@ const getUserInitial = computed(() => user.value?.email?.[0]?.toUpperCase() || '
 
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const formatTimeAgo = (timestamp) => {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 60) return 'Just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return formatDate(timestamp)
 }
 
 const openBuyCredits = () => {
@@ -530,12 +546,19 @@ const handleManageSubscription = async () => {
 <template>
   <div class="app">
     <!-- Header -->
-    <header v-if="currentView !== 'landing'" class="header">
+    <header v-if="currentView !== 'landing' || hasSeenLanding" class="header">
       <div class="header-brand" @click="haptic(); resetCamera()">
         <img src="/logo.png" alt="Recipe Snap" class="header-logo" />
         <h1>Recipe Snap</h1>
       </div>
       <div class="header-actions">
+        <button class="header-btn header-btn-about" @click="haptic(); currentView = 'landing'" title="About"></button>
+        <button v-if="searchHistory.length" class="header-btn" @click="viewHistory" title="Recent Searches">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </button>
         <button class="header-btn" @click="viewFavorites" title="Favorites">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
@@ -595,9 +618,9 @@ const handleManageSubscription = async () => {
       </div>
 
       <button class="landing-cta" @click="haptic('medium'); getStarted()">
-        Get Started
+        {{ hasSeenLanding ? 'Start Snapping' : 'Get Started' }}
       </button>
-      <p class="landing-free-hint">{{ FREE_SNAPS_LIMIT }} free snaps, no account needed</p>
+      <p v-if="!hasSeenLanding" class="landing-free-hint">{{ FREE_SNAPS_LIMIT }} free snaps, no account needed</p>
     </div>
 
     <!-- Hidden file input -->
@@ -684,24 +707,17 @@ const handleManageSubscription = async () => {
         </div>
       </div>
 
-      <!-- Search History -->
-      <div v-if="searchHistory.length" class="history-section">
-        <h3 class="history-title">Recent Searches</h3>
-        <div class="history-list">
-          <button
-            v-for="entry in searchHistory"
-            :key="entry.id"
-            class="history-item"
-            @click="loadFromHistory(entry)"
-          >
-            <div class="history-ingredients">
-              {{ entry.ingredients.slice(0, 4).join(', ') }}{{ entry.ingredients.length > 4 ? '...' : '' }}
-            </div>
-            <div class="history-meta">
-              {{ entry.recipes.length }} recipe{{ entry.recipes.length === 1 ? '' : 's' }}
-            </div>
-          </button>
-        </div>
+      <!-- Search History (compact chips) -->
+      <div v-if="searchHistory.length" class="history-chips">
+        <span class="history-chips-label">Recent</span>
+        <div class="history-chips-row"><button
+          v-for="entry in searchHistory.slice(0, 3)"
+          :key="entry.id"
+          class="history-chip"
+          @click="loadFromHistory(entry)"
+        >
+          {{ entry.ingredients.slice(0, 3).join(', ') }}{{ entry.ingredients.length > 3 ? '...' : '' }}
+        </button></div>
       </div>
     </div>
 
@@ -964,69 +980,81 @@ const handleManageSubscription = async () => {
     </div>
 
     <!-- Favorites Bottom Sheet -->
-    <Transition name="sheet">
-      <div v-if="showFavorites" class="sheet-overlay" @click.self="showFavorites = false">
-        <div class="sheet">
-          <div class="sheet-handle" @click="showFavorites = false"><span></span></div>
-          <h2 class="section-title">Saved Recipes</h2>
+    <BaseSheet v-if="showFavorites" title="Saved Recipes" @close="showFavorites = false">
+      <div v-if="favorites.length === 0" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <p>No saved recipes yet</p>
+        <p class="empty-hint">Tap the heart icon on any recipe to save it</p>
+      </div>
 
-          <div class="sheet-scroll">
-            <div v-if="favorites.length === 0" class="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <div
+        v-for="recipe in favorites"
+        :key="recipe.name"
+        class="recipe-card"
+        @click="showFavorites = false; viewFavoriteRecipe(recipe)"
+      >
+        <div class="recipe-image-container">
+          <div v-if="!recipe.imageUrl" class="skeleton-image"></div>
+          <img
+            v-if="recipe.imageUrl"
+            :src="recipe.imageUrl"
+            :alt="recipe.name"
+            class="recipe-image loaded"
+            loading="lazy"
+          />
+        </div>
+        <div class="recipe-card-content">
+          <div class="recipe-card-header">
+            <h3 class="recipe-name">{{ recipe.name }}</h3>
+            <button
+              class="favorite-btn active"
+              @click.stop="haptic(); toggleFavorite(recipe)"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
-              <p>No saved recipes yet</p>
-              <p class="empty-hint">Tap the heart icon on any recipe to save it</p>
-            </div>
-
-            <div
-              v-for="recipe in favorites"
-              :key="recipe.name"
-              class="recipe-card"
-              @click="showFavorites = false; viewFavoriteRecipe(recipe)"
-            >
-              <div class="recipe-image-container">
-                <div v-if="!recipe.imageUrl" class="skeleton-image"></div>
-                <img
-                  v-if="recipe.imageUrl"
-                  :src="recipe.imageUrl"
-                  :alt="recipe.name"
-                  class="recipe-image loaded"
-                  loading="lazy"
-                />
-              </div>
-              <div class="recipe-card-content">
-                <div class="recipe-card-header">
-                  <h3 class="recipe-name">{{ recipe.name }}</h3>
-                  <button
-                    class="favorite-btn active"
-                    @click.stop="haptic(); toggleFavorite(recipe)"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="recipe-meta">
-                  <span>{{ recipe.time }}</span>
-                  <span>{{ recipe.difficulty }}</span>
-                </div>
-                <p class="recipe-description">{{ recipe.description }}</p>
-              </div>
-            </div>
+            </button>
           </div>
+          <div class="recipe-meta">
+            <span>{{ recipe.time }}</span>
+            <span>{{ recipe.difficulty }}</span>
+          </div>
+          <p class="recipe-description">{{ recipe.description }}</p>
         </div>
       </div>
-    </Transition>
+    </BaseSheet>
+
+    <!-- History Bottom Sheet -->
+    <BaseSheet v-if="showHistory" title="Recent Searches" @close="showHistory = false">
+      <div v-if="searchHistory.length === 0" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <p>No recent searches</p>
+        <p class="empty-hint">Your search history will appear here</p>
+      </div>
+
+      <div
+        v-for="entry in searchHistory"
+        :key="entry.id"
+        class="history-sheet-item"
+        @click="showHistory = false; loadFromHistory(entry)"
+      >
+        <div class="history-sheet-ingredients">
+          {{ entry.ingredients.join(', ') }}
+        </div>
+        <div class="history-sheet-footer">
+          <span class="history-sheet-recipes">{{ entry.recipes.length }} recipe{{ entry.recipes.length === 1 ? '' : 's' }}</span>
+          <span class="history-sheet-time">{{ formatTimeAgo(entry.timestamp) }}</span>
+        </div>
+      </div>
+    </BaseSheet>
 
     <!-- Settings Bottom Sheet -->
-    <Transition name="sheet">
-      <div v-if="showSettings" class="sheet-overlay" @click.self="showSettings = false">
-        <div class="sheet">
-          <div class="sheet-handle" @click="showSettings = false"><span></span></div>
-          <h2 class="section-title">Settings</h2>
-
-          <div class="sheet-scroll">
+    <BaseSheet v-if="showSettings" title="Settings" @close="showSettings = false">
 
       <!-- Default Servings -->
       <div class="setting-item">
@@ -1190,10 +1218,32 @@ const handleManageSubscription = async () => {
         </div>
       </template>
 
-          </div>
+      <!-- Legal & Support -->
+      <h3 class="settings-subtitle">Support & Legal</h3>
+
+      <a href="mailto:hello@recipesnap.co" class="setting-item setting-link">
+        <div class="setting-info">
+          <span class="setting-label">Contact Support</span>
+          <span class="setting-hint">hello@recipesnap.co</span>
         </div>
-      </div>
-    </Transition>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <button class="setting-item setting-link" @click="legalModal = 'privacy'">
+        <div class="setting-info">
+          <span class="setting-label">Privacy Policy</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+      <button class="setting-item setting-link" @click="legalModal = 'terms'">
+        <div class="setting-info">
+          <span class="setting-label">Terms of Service</span>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+    </BaseSheet>
 
     <!-- Floating action button - new scan -->
     <button
@@ -1221,6 +1271,13 @@ const handleManageSubscription = async () => {
       @login-email="handleLoginEmail"
       @buy="handleBuyCredits"
       @subscribe="handleSubscribe"
+    />
+
+    <!-- Legal Modal -->
+    <LegalModal
+      v-if="legalModal"
+      :type="legalModal"
+      @close="legalModal = null"
     />
   </div>
 </template>

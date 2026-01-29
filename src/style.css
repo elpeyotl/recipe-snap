@@ -113,6 +113,25 @@ body {
   color: white;
 }
 
+.header-btn-about {
+  position: relative;
+  font-size: 0;
+}
+
+.header-btn-about::after {
+  content: '?';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .header-avatar {
   width: 38px;
   height: 38px;
@@ -450,60 +469,96 @@ body {
   font-size: 0.85rem;
 }
 
-/* Search History */
-.history-section {
-  margin-top: 2rem;
-  width: 100%;
+/* Search History Chips */
+.history-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
   max-width: 400px;
 }
 
-.history-title {
-  font-size: 0.8rem;
+.history-chips-label {
+  font-size: 0.75rem;
   color: var(--text-light);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 0.75rem;
-  text-align: center;
 }
 
-.history-list {
+.history-chips-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.5rem;
 }
 
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.history-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-chip:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.history-chip:active {
+  transform: scale(0.95);
+}
+
+/* History Sheet */
+.history-sheet-item {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.75rem 1rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
   cursor: pointer;
-  text-align: left;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 0.9rem;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s, border-color 0.2s;
 }
 
-.history-item:active {
+.history-sheet-item:hover {
+  border-color: var(--primary);
+}
+
+.history-sheet-item:active {
   transform: scale(0.98);
 }
 
-.history-ingredients {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 0.75rem;
+.history-sheet-ingredients {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 0.5rem;
 }
 
-.history-meta {
+.history-sheet-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-sheet-recipes {
+  font-size: 0.8rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.history-sheet-time {
   font-size: 0.75rem;
   color: var(--text-light);
-  white-space: nowrap;
 }
 
 /* Preview */
@@ -1200,6 +1255,26 @@ body {
 .setting-hint {
   font-size: 0.8rem;
   color: var(--text-light);
+}
+
+.setting-link {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.setting-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.setting-link svg {
+  color: var(--text-light);
+  flex-shrink: 0;
 }
 
 .settings-subtitle {

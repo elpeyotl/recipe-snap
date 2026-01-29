@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { PACKS, SUBSCRIPTION } from '../services/stripe'
+import BaseModal from './BaseModal.vue'
 
 const props = defineProps({
   needsLogin: Boolean,
@@ -15,10 +16,6 @@ const email = ref('')
 const emailError = ref('')
 const magicLinkSent = ref(false)
 
-const onKeydown = (e) => { if (e.key === 'Escape') emit('close') }
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
-
 const handleEmailSubmit = () => {
   emailError.value = ''
   const trimmed = email.value.trim()
@@ -32,10 +29,8 @@ const handleEmailSubmit = () => {
 </script>
 
 <template>
-  <div class="paywall-overlay" @click.self="$emit('close')">
-    <div class="paywall-modal">
-      <button class="paywall-close" @click="$emit('close')">×</button>
-
+  <BaseModal max-width="400px" @close="$emit('close')">
+    <div class="paywall-content">
       <!-- Login State -->
       <template v-if="needsLogin">
         <div class="paywall-icon">{{ voluntaryLogin ? '👤' : '🔑' }}</div>
@@ -129,53 +124,13 @@ const handleEmailSubmit = () => {
         Maybe later
       </button>
     </div>
-  </div>
+  </BaseModal>
 </template>
 
 <style scoped>
-.paywall-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.paywall-modal {
-  background: var(--card-bg);
-  border-radius: 1rem;
+.paywall-content {
   padding: 2rem;
-  max-width: 400px;
-  width: 100%;
   text-align: center;
-  position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-}
-
-.paywall-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-
-.paywall-close:hover {
-  background: var(--bg-secondary);
 }
 
 .paywall-icon {
@@ -187,11 +142,11 @@ const handleEmailSubmit = () => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.75rem;
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .paywall-description {
-  color: var(--text-secondary);
+  color: var(--text-light);
   margin: 0 0 1.5rem;
   line-height: 1.5;
 }
@@ -218,14 +173,14 @@ const handleEmailSubmit = () => {
 
 .paywall-btn-secondary {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-light);
   border: 1px solid var(--border);
   margin-top: 0.5rem;
 }
 
 .paywall-btn-secondary:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
 }
 
 .paywall-btn-social {
@@ -233,31 +188,31 @@ const handleEmailSubmit = () => {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
   border: 1px solid var(--border);
   margin-bottom: 0.75rem;
 }
 
 .paywall-btn-social:hover {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .paywall-btn-text {
   background: none;
-  color: var(--text-secondary);
+  color: var(--text-light);
   font-size: 0.9rem;
   margin-top: 1rem;
   padding: 0.5rem;
 }
 
 .paywall-btn-text:hover {
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 .paywall-hint {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-light);
   margin: 0.75rem 0 0;
 }
 
@@ -265,7 +220,7 @@ const handleEmailSubmit = () => {
   display: flex;
   align-items: center;
   margin: 1rem 0;
-  color: var(--text-secondary);
+  color: var(--text-light);
   font-size: 0.8rem;
 }
 
@@ -293,8 +248,8 @@ const handleEmailSubmit = () => {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   font-size: 1rem;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
   box-sizing: border-box;
 }
 
@@ -323,7 +278,7 @@ const handleEmailSubmit = () => {
 .paywall-success-text {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text);
   margin: 0;
 }
 
@@ -338,7 +293,7 @@ const handleEmailSubmit = () => {
   border-radius: 0.75rem;
   border: 2px solid var(--primary);
   background: rgba(76, 175, 80, 0.1);
-  color: var(--text-primary);
+  color: var(--text);
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
@@ -373,7 +328,7 @@ const handleEmailSubmit = () => {
 
 .subscription-option-label {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-light);
 }
 
 .subscription-option-price {
@@ -384,7 +339,7 @@ const handleEmailSubmit = () => {
 
 .subscription-option-hint {
   font-size: 0.7rem;
-  color: var(--text-secondary);
+  color: var(--text-light);
 }
 
 /* Credit Packs */
@@ -403,8 +358,8 @@ const handleEmailSubmit = () => {
   padding: 1.25rem 0.5rem;
   border-radius: 0.75rem;
   border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
@@ -443,7 +398,7 @@ const handleEmailSubmit = () => {
 
 .credit-pack-label {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-light);
 }
 
 .credit-pack-price {
