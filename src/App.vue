@@ -88,10 +88,17 @@ onMounted(() => {
     try {
       const session = JSON.parse(savedSession)
       if (session.recipes?.length) {
-        recipes.value = session.recipes
+        recipes.value = session.recipes.map(r => ({
+          ...r,
+          imageUrl: null,
+          imageLoading: true,
+          imageLoaded: false
+        }))
         ingredients.value = session.ingredients || []
         originalIngredients.value = session.originalIngredients || []
         currentView.value = session.view === 'detail' ? 'results' : (session.view || 'results')
+        // Re-fetch images (not stored in session to save localStorage space)
+        loadRecipeImages(session.recipes)
       }
     } catch (e) {
       // Ignore corrupt session data
@@ -113,15 +120,19 @@ watch(servings, (val) => localStorage.setItem('recipesnap_servings', JSON.string
 watch(maxTime, (val) => localStorage.setItem('recipesnap_maxtime', JSON.stringify(val)))
 watch(language, (val) => localStorage.setItem('recipesnap_language', val))
 
-// Save session when recipes or view changes
+// Save session when recipes or view changes (strip base64 images to avoid localStorage quota)
 watch([recipes, ingredients, currentView], () => {
   if (recipes.value.length > 0) {
-    localStorage.setItem('recipesnap_session', JSON.stringify({
-      recipes: recipes.value,
-      ingredients: ingredients.value,
-      originalIngredients: originalIngredients.value,
-      view: currentView.value
-    }))
+    try {
+      localStorage.setItem('recipesnap_session', JSON.stringify({
+        recipes: recipes.value.map(({ imageUrl, imageLoading, imageLoaded, ...rest }) => rest),
+        ingredients: ingredients.value,
+        originalIngredients: originalIngredients.value,
+        view: currentView.value
+      }))
+    } catch (e) {
+      // Ignore quota exceeded errors
+    }
   }
 }, { deep: true })
 
@@ -314,13 +325,13 @@ const resetCamera = () => {
   localStorage.removeItem('recipesnap_session')
 }
 
-// Save current search to history
+// Save current search to history (strip image URLs - base64 data is too large for localStorage)
 const saveToHistory = () => {
   if (!ingredients.value.length || !recipes.value.length) return
   const entry = {
     id: Date.now(),
     ingredients: [...ingredients.value],
-    recipes: recipes.value.map(r => ({ ...r })),
+    recipes: recipes.value.map(({ imageUrl, imageLoading, imageLoaded, ...rest }) => rest),
     timestamp: Date.now()
   }
   // Remove duplicate (same ingredients) if exists
@@ -336,9 +347,17 @@ const loadFromHistory = (entry) => {
   haptic()
   ingredients.value = [...entry.ingredients]
   originalIngredients.value = [...entry.ingredients]
-  recipes.value = entry.recipes.map(r => ({ ...r }))
+  recipes.value = entry.recipes.map(r => ({
+    ...r,
+    imageUrl: null,
+    imageLoading: true,
+    imageLoaded: false
+  }))
   selectedRecipe.value = null
   currentView.value = 'results'
+
+  // Always re-fetch images (not stored in history to save localStorage space)
+  loadRecipeImages(entry.recipes)
 }
 
 // View recipe detail
