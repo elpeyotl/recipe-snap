@@ -740,10 +740,12 @@ const handleManageSubscription = async () => {
 
       <div v-if="error" :class="isNoIngredientsError ? 'no-ingredients-notice' : 'error'">
         <svg v-if="isNoIngredientsError" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="no-ingredients-icon">
-          <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" opacity="0.3"/>
-          <path d="M20 44 C20 44 22 32 32 32 C42 32 44 44 44 44" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-          <path d="M32 18 L32 26 M28 20 L32 26 L36 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-          <line x1="16" y1="16" x2="48" y2="48" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+          <!-- Fork -->
+          <path d="M20 12 L20 30 M20 30 L20 52 M16 12 L16 22 C16 26 20 26 20 26 C20 26 24 26 24 22 L24 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+          <!-- Knife -->
+          <path d="M44 12 C44 12 40 14 40 24 L40 30 L44 30 L44 52 M44 12 L44 30" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+          <!-- Diagonal slash -->
+          <line x1="12" y1="12" x2="52" y2="52" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
         </svg>
         <p>{{ error }}</p>
         <button class="btn btn-retry" @click="haptic(); analyzeIngredients()">
