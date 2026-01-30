@@ -72,7 +72,13 @@ function parseGeminiResponse(text) {
   } else if (text.includes('```')) {
     jsonStr = text.split('```')[1].split('```')[0]
   }
-  return JSON.parse(jsonStr.trim())
+
+  const trimmed = jsonStr.trim()
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    throw new Error('No recipes could be generated from the provided ingredients. Please try different ingredients.')
+  }
+
+  return JSON.parse(trimmed)
 }
 
 export default async function handler(req, res) {
