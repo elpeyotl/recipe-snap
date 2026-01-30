@@ -5,6 +5,10 @@ defineProps({
   title: {
     type: String,
     required: true
+  },
+  show: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -17,7 +21,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
   <Transition name="sheet">
-    <div class="sheet-overlay" @click.self="$emit('close')">
+    <div v-if="show" class="sheet-overlay" @click.self="$emit('close')">
       <div class="sheet">
         <div class="sheet-handle" @click="$emit('close')"><span></span></div>
         <h2 class="section-title">{{ title }}</h2>

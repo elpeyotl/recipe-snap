@@ -48,6 +48,7 @@ body {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
   color: white;
   padding: 1rem;
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
   display: flex;
   align-items: center;
   justify-content: space-between;

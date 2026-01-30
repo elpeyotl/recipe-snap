@@ -1001,7 +1001,7 @@ const handleManageSubscription = async () => {
     </div>
 
     <!-- Favorites Bottom Sheet -->
-    <BaseSheet v-if="showFavorites" title="Saved Recipes" @close="showFavorites = false">
+    <BaseSheet :show="showFavorites" title="Saved Recipes" @close="showFavorites = false">
       <div v-if="favorites.length === 0" class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -1048,7 +1048,7 @@ const handleManageSubscription = async () => {
     </BaseSheet>
 
     <!-- History Bottom Sheet -->
-    <BaseSheet v-if="showHistory" title="Recent Searches" @close="showHistory = false">
+    <BaseSheet :show="showHistory" title="Recent Searches" @close="showHistory = false">
       <div v-if="searchHistory.length === 0" class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="12" cy="12" r="10"/>
@@ -1075,7 +1075,7 @@ const handleManageSubscription = async () => {
     </BaseSheet>
 
     <!-- Settings Bottom Sheet (cooking preferences) -->
-    <BaseSheet v-if="showSettings" title="Settings" @close="showSettings = false">
+    <BaseSheet :show="showSettings" title="Settings" @close="showSettings = false">
 
       <!-- Default Servings -->
       <div class="setting-item">
@@ -1183,7 +1183,7 @@ const handleManageSubscription = async () => {
     </BaseSheet>
 
     <!-- Profile Bottom Sheet (account, subscription, legal) -->
-    <BaseSheet v-if="showProfile" title="Account" @close="showProfile = false">
+    <BaseSheet :show="showProfile" title="Account" @close="showProfile = false">
 
       <template v-if="isLoggedIn">
         <div class="account-card">

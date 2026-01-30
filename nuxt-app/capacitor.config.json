@@ -1,0 +1,13 @@
+{
+  "appId": "com.recipesnap.app",
+  "appName": "Recipe Snap",
+  "webDir": ".output/public",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "Camera": {
+      "permissionText": "Recipe Snap needs camera access to scan your ingredients"
+    }
+  }
+}

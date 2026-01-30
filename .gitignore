@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Nuxt build output
+.nuxt
+.output
+
 # Environment variables
 .env
 .env.local
