@@ -1051,6 +1051,36 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* Friendly no-ingredients notice */
+.no-ingredients-notice {
+  padding: 1.5rem 1rem;
+  margin: 1rem;
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.no-ingredients-icon {
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.no-ingredients-notice p {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.no-ingredients-notice .btn-retry {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.no-ingredients-notice .btn-retry:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .btn-retry {
   display: inline-flex;
   align-items: center;

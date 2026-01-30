@@ -40,6 +40,7 @@ const originalIngredients = ref([]) // Track original ingredients for comparison
 const recipes = ref([])
 const selectedRecipe = ref(null)
 const error = ref(null)
+const isNoIngredientsError = computed(() => error.value?.includes('No food ingredients') || error.value?.includes('No recipes could be generated'))
 const loadingProgress = ref('')
 
 // Ingredient editing state
@@ -737,7 +738,13 @@ const handleManageSubscription = async () => {
     <div v-if="currentView === 'preview'" class="preview-section container">
       <img :src="imageData" alt="Preview" class="preview-image" />
 
-      <div v-if="error" class="error">
+      <div v-if="error" :class="isNoIngredientsError ? 'no-ingredients-notice' : 'error'">
+        <svg v-if="isNoIngredientsError" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="no-ingredients-icon">
+          <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+          <path d="M20 44 C20 44 22 32 32 32 C42 32 44 44 44 44" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          <path d="M32 18 L32 26 M28 20 L32 26 L36 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+          <line x1="16" y1="16" x2="48" y2="48" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+        </svg>
         <p>{{ error }}</p>
         <button class="btn btn-retry" @click="haptic(); analyzeIngredients()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
