@@ -119,8 +119,17 @@ export default async function handler(req, res) {
     )
 
     if (!response.ok) {
-      const error = await response.json()
-      return res.status(502).json({ error: error.error?.message || 'Failed to analyze image' })
+      const errorText = await response.text()
+      console.error('Gemini API error:', response.status, errorText)
+      let message = 'Failed to analyze image'
+      try {
+        const error = JSON.parse(errorText)
+        message = error.error?.message || message
+      } catch {}
+      if (response.status === 429) {
+        return res.status(429).json({ error: 'Too many requests — please wait a moment and try again.' })
+      }
+      return res.status(502).json({ error: message })
     }
 
     const data = await response.json()

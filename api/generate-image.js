@@ -45,6 +45,9 @@ The dish should be plated nicely on a clean plate or bowl, professionally lit, s
     if (!response.ok) {
       const error = await response.json()
       console.error('Image generation error:', error)
+      if (response.status === 429) {
+        return res.status(429).json({ error: 'Too many requests — please wait a moment and try again.' })
+      }
       return res.status(502).json({ error: 'Failed to generate image' })
     }
 
