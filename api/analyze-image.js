@@ -102,7 +102,7 @@ export default async function handler(req, res) {
     const prompt = buildPrompt(dietaryFilters, servings, maxTime, language)
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,7 +113,7 @@ export default async function handler(req, res) {
               { inline_data: { mime_type: mimeType, data: imageData } }
             ]
           }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
+          generationConfig: { temperature: 0.4, maxOutputTokens: 8192 }
         })
       }
     )
