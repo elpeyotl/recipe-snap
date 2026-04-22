@@ -37,16 +37,9 @@ export function useAuth() {
     }
     initialized = true
 
-    // Check for existing session
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      user.value = session.user
-      await fetchProfile()
-    }
-
-    // Listen for auth state changes (OAuth redirect, magic link, sign out)
+    // Listen for auth state changes FIRST (needed to catch OAuth redirect tokens)
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         user.value = session.user
         await fetchProfile()
       } else if (event === 'SIGNED_OUT') {
@@ -54,6 +47,13 @@ export function useAuth() {
         profile.value = null
       }
     })
+
+    // Then check for existing session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      user.value = session.user
+      await fetchProfile()
+    }
 
     loading.value = false
   }
