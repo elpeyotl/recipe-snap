@@ -1669,6 +1669,14 @@ body {
   to { transform: rotate(360deg); }
 }
 
+.app-version {
+  text-align: center;
+  color: var(--text-light);
+  font-size: 0.75rem;
+  margin: 1.5rem 0 0.5rem;
+  opacity: 0.6;
+}
+
 /* PWA update banner */
 .update-banner {
   position: fixed;

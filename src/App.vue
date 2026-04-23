@@ -22,6 +22,9 @@ const { needRefresh, updateServiceWorker } = useRegisterSW({
 const applyUpdate = () => updateServiceWorker(true)
 const dismissUpdate = () => { needRefresh.value = false }
 
+// eslint-disable-next-line no-undef
+const appVersion = __APP_VERSION__
+
 // Auth & Credits
 const { user, profile, loading: authLoading, isLoggedIn, credits, subscriptionStatus, subscriptionPeriodEnd, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
 const { freeSnapsRemaining, canSnap, needsLogin, needsCredits, useSnap, totalCredits, subscriptionCredits, hasActiveSubscription, FREE_SNAPS_LIMIT } = useCredits()
@@ -1236,6 +1239,8 @@ const handleManageSubscription = async () => {
         </div>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+
+      <p class="app-version">v{{ appVersion }}</p>
 
     </BaseSheet>
 
