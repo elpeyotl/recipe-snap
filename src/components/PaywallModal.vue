@@ -7,7 +7,8 @@ const props = defineProps({
   needsLogin: Boolean,
   needsCredits: Boolean,
   loading: Boolean,
-  voluntaryLogin: Boolean
+  voluntaryLogin: Boolean,
+  errorMessage: { type: String, default: '' }
 })
 
 const emit = defineEmits(['close', 'login-google', 'login-apple', 'login-email', 'buy', 'subscribe'])
@@ -117,7 +118,12 @@ const handleEmailSubmit = () => {
           </button>
         </div>
 
-        <p class="paywall-hint">One-time purchase. Credits never expire.</p>
+        <p v-if="loading" class="paywall-processing">
+          <span class="paywall-spinner" aria-hidden="true"></span>
+          Redirecting to checkout…
+        </p>
+        <p v-else-if="errorMessage" class="paywall-error paywall-error-block">{{ errorMessage }}</p>
+        <p v-else class="paywall-hint">One-time purchase. Credits never expire.</p>
       </template>
 
       <button class="paywall-btn paywall-btn-text" @click="$emit('close')">
@@ -262,6 +268,38 @@ const handleEmailSubmit = () => {
   color: #ef4444;
   font-size: 0.85rem;
   margin: 0;
+}
+
+.paywall-error-block {
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.5rem;
+  text-align: left;
+}
+
+.paywall-processing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+.paywall-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: paywall-spin 0.7s linear infinite;
+}
+
+@keyframes paywall-spin {
+  to { transform: rotate(360deg); }
 }
 
 .paywall-success {

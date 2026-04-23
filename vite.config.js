@@ -1,24 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { readFileSync } from 'fs'
-
-// Load all .env vars into process.env (so server-side API routes can access GEMINI_API_KEY etc.)
-try {
-  const envFile = readFileSync(resolve(process.cwd(), '.env'), 'utf-8')
-  for (const line of envFile.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const eqIndex = trimmed.indexOf('=')
-    if (eqIndex > 0) {
-      const key = trimmed.slice(0, eqIndex)
-      const val = trimmed.slice(eqIndex + 1)
-      if (!process.env[key]) process.env[key] = val
-    }
-  }
-} catch (e) { /* no .env file */ }
 
 // Plugin to serve /api/ routes locally during dev (mirrors Vercel serverless functions)
 function vercelApiPlugin() {
@@ -81,7 +65,15 @@ function vercelApiPlugin() {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Load all env vars (including non-VITE_ ones) from .env files into process.env
+  // so server-side API routes can access GEMINI_API_KEY, STRIPE_SECRET_KEY, etc.
+  const env = loadEnv(mode, process.cwd(), '')
+  for (const [key, val] of Object.entries(env)) {
+    if (!process.env[key]) process.env[key] = val
+  }
+
+  return {
   plugins: [
     vue(),
     VitePWA({
@@ -111,4 +103,5 @@ export default defineConfig({
     }),
     vercelApiPlugin()
   ],
+  }
 })

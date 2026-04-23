@@ -525,12 +525,16 @@ const loadFavoriteImages = () => {
   })
 }
 
+const purchaseError = ref('')
+
 const handleBuyCredits = async (packName) => {
   purchaseLoading.value = true
+  purchaseError.value = ''
   try {
     await buyCredits(packName)
   } catch (err) {
-    error.value = err.message
+    console.error('buyCredits failed:', err)
+    purchaseError.value = err.message || 'Something went wrong. Please try again.'
   } finally {
     purchaseLoading.value = false
   }
@@ -538,10 +542,12 @@ const handleBuyCredits = async (packName) => {
 
 const handleSubscribe = async () => {
   purchaseLoading.value = true
+  purchaseError.value = ''
   try {
     await buySubscription()
   } catch (err) {
-    error.value = err.message
+    console.error('buySubscription failed:', err)
+    purchaseError.value = err.message || 'Something went wrong. Please try again.'
   } finally {
     purchaseLoading.value = false
   }
@@ -1288,7 +1294,8 @@ const handleManageSubscription = async () => {
       :voluntary-login="forceLoginMode"
       :needs-credits="forceCreditsMode || needsCredits"
       :loading="purchaseLoading"
-      @close="showPaywall = false; forceCreditsMode = false; forceLoginMode = false"
+      :error-message="purchaseError"
+      @close="showPaywall = false; forceCreditsMode = false; forceLoginMode = false; purchaseError = ''"
       @login-google="handleLoginGoogle"
       @login-apple="handleLoginApple"
       @login-email="handleLoginEmail"
