@@ -12,6 +12,7 @@ import { buyCredits, buySubscription, openCustomerPortal } from './services/stri
 import PaywallModal from './components/PaywallModal.vue'
 import LegalModal from './components/LegalModal.vue'
 import BaseSheet from './components/BaseSheet.vue'
+import { supabase } from './services/supabase'
 
 // Auth & Credits
 const { user, profile, loading: authLoading, isLoggedIn, credits, subscriptionStatus, subscriptionPeriodEnd, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
@@ -30,6 +31,7 @@ const showHistory = ref(false)
 const showSettings = ref(false)
 const showProfile = ref(false)
 const legalModal = ref(null) // 'privacy' | 'terms' | null
+const purchaseToast = ref(null) // { state: 'polling' | 'success' | 'timeout', credits?, packName? }
 
 // App state
 const hasSeenLanding = localStorage.getItem('recipesnap_seen_landing')
@@ -64,8 +66,9 @@ onMounted(async () => {
   // Handle Stripe checkout return
   const urlParams = new URLSearchParams(window.location.search)
   if (urlParams.has('session_id')) {
-    await fetchProfile()
+    const sessionId = urlParams.get('session_id')
     window.history.replaceState({}, '', window.location.pathname)
+    handleStripeReturn(sessionId)
   }
 
   // Restore last session (recipes, ingredients, view)
@@ -550,6 +553,46 @@ const handleSubscribe = async () => {
     purchaseError.value = err.message || 'Something went wrong. Please try again.'
   } finally {
     purchaseLoading.value = false
+  }
+}
+
+async function handleStripeReturn(sessionId) {
+  purchaseToast.value = { state: 'polling' }
+  haptic('medium')
+
+  // Poll the transactions table for the row the webhook will insert.
+  // Subscription checkouts don't write to transactions, so they'll hit the
+  // timeout branch and get the generic message — that's acceptable.
+  const deadline = Date.now() + 15000
+  let transaction = null
+
+  while (Date.now() < deadline) {
+    if (!supabase) break
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select('credits_change, pack_name')
+        .eq('stripe_session_id', sessionId)
+        .maybeSingle()
+      if (data) { transaction = data; break }
+    } catch (err) {
+      console.error('handleStripeReturn poll error:', err)
+    }
+    await new Promise(r => setTimeout(r, 1500))
+  }
+
+  await fetchProfile()
+
+  if (transaction) {
+    purchaseToast.value = {
+      state: 'success',
+      credits: transaction.credits_change,
+      packName: transaction.pack_name
+    }
+    setTimeout(() => { purchaseToast.value = null }, 5000)
+  } else {
+    purchaseToast.value = { state: 'timeout' }
+    setTimeout(() => { purchaseToast.value = null }, 7000)
   }
 }
 
@@ -1288,6 +1331,34 @@ const handleManageSubscription = async () => {
         <circle cx="12" cy="13" r="4"/>
       </svg>
     </button>
+
+    <!-- Purchase return toast -->
+    <Transition name="toast">
+      <div v-if="purchaseToast" class="purchase-toast" :class="`purchase-toast-${purchaseToast.state}`">
+        <div class="purchase-toast-icon">
+          <template v-if="purchaseToast.state === 'success'">✨</template>
+          <template v-else-if="purchaseToast.state === 'polling'">
+            <span class="purchase-toast-spinner" aria-hidden="true"></span>
+          </template>
+          <template v-else>💳</template>
+        </div>
+        <div class="purchase-toast-text">
+          <template v-if="purchaseToast.state === 'polling'">
+            <strong>Verifying your payment…</strong>
+            <span>Just a moment.</span>
+          </template>
+          <template v-else-if="purchaseToast.state === 'success'">
+            <strong>+{{ purchaseToast.credits }} snaps added!</strong>
+            <span>Enjoy cooking.</span>
+          </template>
+          <template v-else>
+            <strong>Payment received</strong>
+            <span>Credits will appear shortly — refresh if needed.</span>
+          </template>
+        </div>
+        <button v-if="purchaseToast.state !== 'polling'" class="purchase-toast-close" @click="purchaseToast = null" aria-label="Dismiss">×</button>
+      </div>
+    </Transition>
 
     <!-- Paywall Modal -->
     <PaywallModal

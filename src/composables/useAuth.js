@@ -1,9 +1,27 @@
 import { ref, computed } from 'vue'
 import { supabase } from '../services/supabase'
 
-// Shared state (singleton)
+const PROFILE_STORAGE_KEY = 'recipesnap_profile'
+
+function loadCachedProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function cacheProfile(data) {
+  try {
+    if (data) localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data))
+    else localStorage.removeItem(PROFILE_STORAGE_KEY)
+  } catch { /* storage unavailable */ }
+}
+
+// Shared state (singleton). Profile hydrates synchronously from storage so the
+// UI shows last-known credits immediately on reload; the network fetch in init()
+// revalidates in the background.
 const user = ref(null)
-const profile = ref(null)
+const profile = ref(loadCachedProfile())
 const loading = ref(true)
 let initialized = false
 
@@ -35,7 +53,10 @@ export function useAuth() {
         console.error('fetchProfile error:', error)
         return
       }
-      if (data) profile.value = data
+      if (data) {
+        profile.value = data
+        cacheProfile(data)
+      }
     } catch (err) {
       console.error('fetchProfile failed:', err)
     }
@@ -52,10 +73,16 @@ export function useAuth() {
     supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         user.value = session.user
+        // Drop cached profile if it belongs to a different user
+        if (profile.value && profile.value.id !== session.user.id) {
+          profile.value = null
+          cacheProfile(null)
+        }
         await fetchProfile()
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profile.value = null
+        cacheProfile(null)
       }
     })
 
@@ -63,7 +90,15 @@ export function useAuth() {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
       user.value = session.user
+      if (profile.value && profile.value.id !== session.user.id) {
+        profile.value = null
+        cacheProfile(null)
+      }
       await fetchProfile()
+    } else if (profile.value) {
+      // Cached profile but no session — clear stale cache
+      profile.value = null
+      cacheProfile(null)
     }
 
     loading.value = false
@@ -98,6 +133,7 @@ export function useAuth() {
     // cached token is broken. Then best-effort signOut with Supabase.
     user.value = null
     profile.value = null
+    cacheProfile(null)
 
     try {
       Object.keys(localStorage)
