@@ -1219,7 +1219,9 @@ const handleManageSubscription = async () => {
           <div class="subscription-credits-bar">
             <div class="subscription-credits-fill" :style="{ width: (subscriptionCredits / 80 * 100) + '%' }"></div>
           </div>
-          <div class="subscription-credits-label">{{ subscriptionCredits }} / 80 snaps remaining</div>
+          <div class="subscription-credits-label">
+            {{ subscriptionCredits }} / 80 snaps remaining<template v-if="credits > 0"> · +{{ credits }} bonus</template>
+          </div>
           <button class="btn btn-secondary btn-block" @click="haptic(); handleManageSubscription()">
             Manage Subscription
           </button>
