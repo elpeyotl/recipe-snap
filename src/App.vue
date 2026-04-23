@@ -13,6 +13,14 @@ import PaywallModal from './components/PaywallModal.vue'
 import LegalModal from './components/LegalModal.vue'
 import BaseSheet from './components/BaseSheet.vue'
 import { supabase } from './services/supabase'
+import { useRegisterSW } from 'virtual:pwa-register/vue'
+
+// PWA update detection — shows a refresh prompt when a new service worker is waiting
+const { needRefresh, updateServiceWorker } = useRegisterSW({
+  onRegisterError(err) { console.error('SW registration error:', err) }
+})
+const applyUpdate = () => updateServiceWorker(true)
+const dismissUpdate = () => { needRefresh.value = false }
 
 // Auth & Credits
 const { user, profile, loading: authLoading, isLoggedIn, credits, subscriptionStatus, subscriptionPeriodEnd, init: initAuth, fetchProfile, signInWithEmail, signInWithGoogle, signInWithApple, signOut } = useAuth()
@@ -1331,6 +1339,18 @@ const handleManageSubscription = async () => {
         <circle cx="12" cy="13" r="4"/>
       </svg>
     </button>
+
+    <!-- PWA update available banner -->
+    <Transition name="update-banner">
+      <div v-if="needRefresh" class="update-banner">
+        <div class="update-banner-text">
+          <strong>Update available</strong>
+          <span>A new version of Recipe Snap is ready.</span>
+        </div>
+        <button class="update-banner-btn" @click="applyUpdate">Refresh</button>
+        <button class="update-banner-close" @click="dismissUpdate" aria-label="Dismiss">×</button>
+      </div>
+    </Transition>
 
     <!-- Purchase return toast -->
     <Transition name="toast">

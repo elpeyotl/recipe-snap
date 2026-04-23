@@ -77,7 +77,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon-32.png', 'logo.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Recipe Snap',
