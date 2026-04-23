@@ -69,16 +69,18 @@ export function useAuth() {
     }
     initialized = true
 
-    // Listen for auth state changes FIRST (needed to catch OAuth redirect tokens)
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen for auth state changes FIRST (needed to catch OAuth redirect tokens).
+    // The callback body must stay synchronous — awaiting a Supabase query inside
+    // onAuthStateChange deadlocks the client's internal lock, so defer DB work
+    // with setTimeout(0). See supabase-js docs for this exact caveat.
+    supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         user.value = session.user
-        // Drop cached profile if it belongs to a different user
         if (profile.value && profile.value.id !== session.user.id) {
           profile.value = null
           cacheProfile(null)
         }
-        await fetchProfile()
+        setTimeout(() => { fetchProfile() }, 0)
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profile.value = null
