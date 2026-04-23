@@ -16,14 +16,23 @@ export function usePurchaseHistory() {
 
     loading.value = true
     try {
-      const { data, error } = await supabase
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Purchase history fetch timed out')), 10000)
+      )
+      const query = supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.value.id)
         .eq('type', 'purchase')
         .order('created_at', { ascending: false })
 
+      const { data, error } = await Promise.race([query, timeout])
+
+      if (error) console.error('fetchPurchases error:', error)
       purchases.value = error ? [] : (data || [])
+    } catch (err) {
+      console.error('fetchPurchases failed:', err)
+      purchases.value = []
     } finally {
       loading.value = false
     }

@@ -19,14 +19,25 @@ export function useAuth() {
 
   async function fetchProfile() {
     if (!user.value || !supabase) return
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.value.id)
-      .single()
+    try {
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timed out')), 10000)
+      )
+      const query = supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.value.id)
+        .single()
 
-    if (!error && data) {
-      profile.value = data
+      const { data, error } = await Promise.race([query, timeout])
+
+      if (error) {
+        console.error('fetchProfile error:', error)
+        return
+      }
+      if (data) profile.value = data
+    } catch (err) {
+      console.error('fetchProfile failed:', err)
     }
   }
 
@@ -83,10 +94,24 @@ export function useAuth() {
   }
 
   async function signOut() {
-    if (!supabase) return
-    await supabase.auth.signOut()
+    // Clear local state first so the UI updates even if the API call hangs or the
+    // cached token is broken. Then best-effort signOut with Supabase.
     user.value = null
     profile.value = null
+
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('sb-'))
+        .forEach(k => localStorage.removeItem(k))
+    } catch { /* storage unavailable */ }
+
+    if (supabase) {
+      try {
+        await supabase.auth.signOut()
+      } catch (err) {
+        console.error('signOut API call failed (local state already cleared):', err)
+      }
+    }
   }
 
   return {
